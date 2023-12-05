@@ -51,6 +51,8 @@ const (
 	GT       = ">"
 	GT_EQ    = ">="
 	LT_EQ_GT = "<=>"
+	PRT      = "->"
+	PRT2     = "->>"
 
 	AND = "AND"
 	OR  = "OR"
@@ -69,6 +71,19 @@ const (
 	LIKE    = "LIKE"
 	IS      = "IS"
 	BETWEEN = "BETWEEN"
+
+	DISTINCT = "DISTINCT"
+	AS       = "AS"
+
+	INTERVAL = "INTERVAL"
+	DAY      = "DAY"
+	HOUR     = "HOUR"
+	MONTH    = "MONTH"
+	MINUTE   = "MINUTE"
+	WEEK     = "WEEK"
+	YEAR     = "YEAR"
+	QUARTER  = "QUARTER"
+	SECOND   = "SECOND"
 )
 
 type Token struct {
@@ -81,20 +96,37 @@ func (t Token) String() string {
 }
 
 var keywords = map[string]Type{
-	"CASE":    CASE,
-	"END":     END,
-	"WHEN":    WHEN,
-	"TRUE":    TRUE,
-	"FALSE":   FALSE,
-	"NULL":    NULL,
+	"CASE": CASE,
+	"END":  END,
+	"WHEN": WHEN,
+	"THEN": THEN,
+	"ELSE": ELSE,
+
+	"TRUE":  TRUE,
+	"FALSE": FALSE,
+	"NULL":  NULL,
+
 	"IN":      IN,
-	"IS":      IS,
-	"AND":     AND,
-	"OR":      OR,
-	"THEN":    THEN,
-	"ELSE":    ELSE,
-	"LIKE":    LIKE,
 	"BETWEEN": BETWEEN,
+	"IS":      IS,
+	"LIKE":    LIKE,
+
+	"AND": AND,
+	"OR":  OR,
+
+	"DISTINCT": DISTINCT,
+	"AS":       AS,
+
+	// time
+	"INTERVAL": INTERVAL,
+	"DAY":      DAY,
+	"HOUR":     HOUR,
+	"MONTH":    MONTH,
+	"MINUTE":   MINUTE,
+	"WEEK":     WEEK,
+	"YEAR":     YEAR,
+	"QUARTER":  QUARTER,
+	"SECOND":   SECOND,
 }
 
 var notSupportKeywords = map[string]Type{}
@@ -134,6 +166,15 @@ func init() {
 		"DESC",
 		"UNION",
 	)
+}
+
+func (t Type) IsTimeUnit() bool {
+	switch t {
+	case DAY, HOUR, MONTH, MINUTE, WEEK, YEAR, QUARTER, SECOND:
+		return true
+	default:
+		return false
+	}
 }
 
 func LookupIdent(ident string) Token {

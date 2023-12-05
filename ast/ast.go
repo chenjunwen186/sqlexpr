@@ -1,6 +1,8 @@
 package ast
 
 import (
+	"strings"
+
 	"github.com/chenjunwen186/sqlexpr/token"
 )
 
@@ -59,7 +61,13 @@ func (p *PrefixExpression) TokenLiteral() string {
 }
 
 func (p *PrefixExpression) String() string {
-	return "(" + p.Operator + p.Right.String() + ")"
+	var space string
+	switch p.Token.Type {
+	case token.DISTINCT:
+		space = " "
+	}
+
+	return "(" + p.Operator + space + p.Right.String() + ")"
 }
 
 type InfixExpression struct {
@@ -102,10 +110,9 @@ func (b *BooleanLiteral) String() string {
 }
 
 type CallExpression struct {
-	Token token.Token
-	// TODO
-	Function  Expression
-	Arguments []Expression
+	Token         token.Token
+	FunctionIdent token.Token
+	Arguments     []Expression
 }
 
 func (c *CallExpression) TokenLiteral() string {
@@ -113,8 +120,12 @@ func (c *CallExpression) TokenLiteral() string {
 }
 
 func (c *CallExpression) String() string {
-	// TODO
-	return c.Token.Literal
+	args := make([]string, len(c.Arguments))
+	for i, arg := range c.Arguments {
+		args[i] = arg.String()
+	}
+
+	return c.FunctionIdent.Literal + "(" + strings.Join(args, ", ") + ")"
 }
 
 type TestStringLiteral struct {
@@ -131,19 +142,104 @@ func (t *TestStringLiteral) String() string {
 }
 
 type TestNumberLiteral struct {
-	Token token.Token
-	Value string
+	Token   token.Token
+	Literal string
+}
+
+func (t *TestNumberLiteral) TokenLiteral() string {
+	return t.Token.Literal
+}
+
+func (t *TestNumberLiteral) String() string {
+	return t.Token.Literal
 }
 
 type CaseExpression struct {
 	Token token.Token
-	// TODO
+	Whens []When
+	Else  Expression
+}
+
+func (c *CaseExpression) TokenLiteral() string {
+	return c.Token.Literal
+}
+
+func (c *CaseExpression) String() string {
+	var whens []string
+	for _, when := range c.Whens {
+		whens = append(whens, when.String())
+	}
+
+	var elseStr string
+	if c.Else != nil {
+		elseStr = " ELSE " + c.Else.String()
+	}
+
+	return "CASE " + strings.Join(whens, " ") + elseStr + " END"
+}
+
+type When struct {
+	Cond Expression
+	Then Expression
+}
+
+func (c *When) String() string {
+	return "WHEN " + c.Cond.String() + " THEN " + c.Then.String()
 }
 
 type InExpression struct {
 	Token token.Token
 }
 
+func (i *InExpression) TokenLiteral() string {
+	return i.Token.Literal
+}
+
+func (i *InExpression) String() string {
+	return i.Token.Literal
+}
+
+type NotInExpression struct {
+}
+
 type BetweenExpression struct {
-	Token token.Token
+	From Expression
+	To   Expression
+}
+
+func (b *BetweenExpression) TokenLiteral() string {
+	return token.BETWEEN
+}
+
+type NotBetweenExpression struct {
+	From Expression
+	To   Expression
+}
+
+func (n *NotBetweenExpression) TokenLiteral() string {
+	return token.NOT + " " + token.BETWEEN
+}
+
+type LikeExpression struct {
+	Match Expression
+}
+
+func (l *LikeExpression) TokenLiteral() string {
+	return token.LIKE
+}
+
+func (l *LikeExpression) String() string {
+	return "LIKE " + l.Match.String()
+}
+
+type NotLikeExpression struct {
+	Match Expression
+}
+
+func (n *NotLikeExpression) TokenLiteral() string {
+	return token.NOT + " " + token.LIKE
+}
+
+func (n *NotLikeExpression) String() string {
+	return "NOT LIKE " + n.Match.String()
 }

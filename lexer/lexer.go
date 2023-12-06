@@ -53,7 +53,14 @@ func (l *Lexer) isWhitespace() bool {
 func (l *Lexer) readDecimal() token.Token {
 	var b bytes.Buffer
 
+	var hasPeriod bool
 	for isDigit(l.char) || (l.char == '.' && isDigit(l.peekChar())) {
+		if l.char == '.' {
+			if hasPeriod {
+				return token.NewIllegalToken("invalid number literal")
+			}
+			hasPeriod = true
+		}
 		b.WriteRune(l.char)
 		l.readChar()
 	}
@@ -171,9 +178,14 @@ func (l *Lexer) NextToken() token.Token {
 		if l.peekChar() == '-' {
 			l.readChar()
 			// Not support `--``
-			tok = token.Token{
-				Type:    token.ILLEGAL,
-				Literal: fmt.Sprintf("not support SQL comment `--`"),
+			tok = token.NewIllegalToken("not support SQL comment `--`")
+		} else if l.peekChar() == '>' {
+			l.readChar()
+			if l.peekChar() == '>' {
+				l.readChar()
+				tok = token.Token{Type: token.PRT2, Literal: "->>"}
+			} else {
+				tok = token.Token{Type: token.PRT, Literal: "->"}
 			}
 		} else {
 			tok = newToken(token.MINUS, l.char)
@@ -184,10 +196,7 @@ func (l *Lexer) NextToken() token.Token {
 		if l.peekChar() == '*' {
 			l.readChar()
 			// Not support `/*`
-			tok = token.Token{
-				Type:    token.ILLEGAL,
-				Literal: fmt.Sprintf("not support SQL comment `/*`"),
-			}
+			tok = token.NewIllegalToken("not support SQL comment `/*`")
 		} else {
 			tok = newToken(token.SLASH, l.char)
 		}
@@ -197,9 +206,6 @@ func (l *Lexer) NextToken() token.Token {
 		tok = newToken(token.TILDE, l.char)
 	case '&':
 		tok = newToken(token.AMP, l.char)
-
-	case ';':
-		tok = newToken(token.SEMICOLON, l.char)
 
 	case '<':
 		if l.peekChar() == '=' {
@@ -260,9 +266,11 @@ func (l *Lexer) NextToken() token.Token {
 		if l.isDecimalStart() {
 			tok = l.readDecimal()
 			return tok
-		}
-
-		if l.isIdentifierStart() {
+		} else if l.char == '.' && !isDigit(l.peekChar()) {
+			tok = newToken(token.PERIOD, l.char)
+			l.readChar() // Move to next char
+			return tok
+		} else if l.isIdentifierStart() {
 			ident := l.readIdentifier()
 			return token.LookupIdent(ident)
 		}

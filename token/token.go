@@ -16,11 +16,8 @@ const (
 
 	IDENT_QUOTED = "IDENT_QUOTED"
 
-	// Float, Integer...
-	NUMBER = "NUMBER"
-	// INT    = "INT"
-	// FLOAT  = "FLOAT"
 	STRING = "STRING"
+	NUMBER = "NUMBER"
 
 	NOT = "NOT"
 
@@ -36,9 +33,9 @@ const (
 	LT2      = "<<"
 	RT2      = ">>"
 	TILDE    = "~"
+	PERIOD   = "."
 
-	SEMICOLON = ";"
-	COMMA     = ","
+	COMMA = ","
 
 	LPAREN = "("
 	RPAREN = ")"
@@ -93,6 +90,25 @@ type Token struct {
 
 func (t Token) String() string {
 	return fmt.Sprintf("Token(%s, %s)", t.Type, t.Literal)
+}
+
+func (t Token) IsError() error {
+	if t.Type == ILLEGAL {
+		return fmt.Errorf(t.Literal)
+	}
+
+	return nil
+}
+
+func (t Token) IsEOF() bool {
+	return t.Type == EOF
+}
+
+func NewIllegalToken(errMsg string) Token {
+	return Token{
+		Type:    ILLEGAL,
+		Literal: errMsg,
+	}
 }
 
 var keywords = map[string]Type{
@@ -150,8 +166,6 @@ func init() {
 		"OFFSET",
 		"UNION",
 		"ALL",
-		"DISTINCT",
-		"AS",
 		"ON",
 		"USING",
 		"INNER",

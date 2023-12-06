@@ -111,7 +111,7 @@ func (b *BooleanLiteral) String() string {
 
 type CallExpression struct {
 	Token         token.Token
-	FunctionIdent token.Token
+	FunctionIdent Identifier
 	Arguments     []Expression
 }
 
@@ -125,32 +125,32 @@ func (c *CallExpression) String() string {
 		args[i] = arg.String()
 	}
 
-	return c.FunctionIdent.Literal + "(" + strings.Join(args, ", ") + ")"
+	return c.FunctionIdent.Value + "(" + strings.Join(args, ", ") + ")"
 }
 
-type TestStringLiteral struct {
+type StringLiteral struct {
 	Token token.Token
 	Value string
 }
 
-func (t *TestStringLiteral) TokenLiteral() string {
+func (t *StringLiteral) TokenLiteral() string {
 	return t.Token.Literal
 }
 
-func (t *TestStringLiteral) String() string {
+func (t *StringLiteral) String() string {
 	return t.Token.Literal
 }
 
-type TestNumberLiteral struct {
+type NumberLiteral struct {
 	Token   token.Token
 	Literal string
 }
 
-func (t *TestNumberLiteral) TokenLiteral() string {
+func (t *NumberLiteral) TokenLiteral() string {
 	return t.Token.Literal
 }
 
-func (t *TestNumberLiteral) String() string {
+func (t *NumberLiteral) String() string {
 	return t.Token.Literal
 }
 

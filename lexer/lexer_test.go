@@ -68,18 +68,21 @@ func TestNullLiteral(t *testing.T) {
 	expected.testAll(t, "TestNullLiteral", l)
 }
 
-func TestNumberLiteral(t *testing.T) {
-	input := `123 123.456 .456`
+func TestNumberPeriodLiteral(t *testing.T) {
+	input := `. 123 . 123.456 .456 .`
 	expected := ExpectedList{
+		{token.PERIOD, "."},
 		{token.NUMBER, "123"},
+		{token.PERIOD, "."},
 		{token.NUMBER, "123.456"},
 		{token.NUMBER, ".456"},
+		{token.PERIOD, "."},
 		{token.EOF, ""},
 	}
 
 	l := New(input)
 
-	expected.testAll(t, "TestNumberLiteral", l)
+	expected.testAll(t, "TestNumberPeriodLiteral", l)
 }
 
 func TestIdentifiers(t *testing.T) {

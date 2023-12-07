@@ -105,7 +105,7 @@ func (p *Parser) parseExpression(precedence int) (ast.Expression, error) {
 		return nil, err
 	}
 
-	for precedence < p.peekPrecedence() {
+	for !p.peekTokenIs(token.EOF) && precedence < p.peekPrecedence() {
 		infix := p.infixParseFns[p.peekToken.Type]
 		if infix == nil {
 			return nil, fmt.Errorf("no infix parse function for %s found", p.peekToken.Type)
@@ -199,7 +199,7 @@ func (p *Parser) parseIdentifier() (ast.Expression, error) {
 }
 
 func (p *Parser) parseBooleanLiteral() (ast.Expression, error) {
-	return &ast.BooleanLiteral{Token: p.curToken, Value: p.curTokenIs(token.TRUE)}, nil
+	return &ast.BooleanLiteral{Token: p.curToken}, nil
 }
 
 func (p *Parser) parseNullLiteral() (ast.Expression, error) {
@@ -211,7 +211,7 @@ func (p *Parser) parseStringLiteral() (ast.Expression, error) {
 }
 
 func (p *Parser) parseNumberLiteral() (ast.Expression, error) {
-	return &ast.NumberLiteral{Token: p.curToken, Literal: p.curToken.Literal}, nil
+	return &ast.NumberLiteral{Token: p.curToken}, nil
 }
 
 func (p *Parser) parseCaseWhenExpression() (ast.Expression, error) {

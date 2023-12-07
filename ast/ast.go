@@ -24,32 +24,6 @@ func (i *Identifier) String() string {
 	return i.Value
 }
 
-type IntegerLiteral struct {
-	Token token.Token
-	Value int64
-}
-
-func (i *IntegerLiteral) TokenLiteral() string {
-	return i.Token.Literal
-}
-
-func (i *IntegerLiteral) String() string {
-	return i.Token.Literal
-}
-
-type FloatLiteral struct {
-	Token token.Token
-	Value float64
-}
-
-func (f *FloatLiteral) TokenLiteral() string {
-	return f.Token.Literal
-}
-
-func (f *FloatLiteral) String() string {
-	return f.Token.Literal
-}
-
 type PrefixExpression struct {
 	Token    token.Token
 	Operator string
@@ -86,7 +60,7 @@ func (i *InfixExpression) String() string {
 }
 
 type NullLiteral struct {
-	Token token.Token
+	token.Token
 }
 
 func (n *NullLiteral) TokenLiteral() string {
@@ -97,8 +71,7 @@ func (n *NullLiteral) String() string {
 }
 
 type BooleanLiteral struct {
-	Token token.Token
-	Value bool
+	token.Token
 }
 
 func (b *BooleanLiteral) TokenLiteral() string {
@@ -142,16 +115,15 @@ func (t *StringLiteral) String() string {
 }
 
 type NumberLiteral struct {
-	Token   token.Token
-	Literal string
+	token.Token
 }
 
 func (t *NumberLiteral) TokenLiteral() string {
-	return t.Token.Literal
+	return t.Literal
 }
 
 func (t *NumberLiteral) String() string {
-	return t.Token.Literal
+	return t.Literal
 }
 
 type CaseExpression struct {

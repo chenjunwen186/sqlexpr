@@ -25,9 +25,12 @@ func (i *Identifier) String() string {
 }
 
 type PrefixExpression struct {
-	Token    token.Token
-	Operator string
-	Right    Expression
+	Token token.Token
+	Right Expression
+}
+
+func (p *PrefixExpression) Operator() string {
+	return p.Token.Literal
 }
 
 func (p *PrefixExpression) TokenLiteral() string {
@@ -41,14 +44,17 @@ func (p *PrefixExpression) String() string {
 		space = " "
 	}
 
-	return "(" + p.Operator + space + p.Right.String() + ")"
+	return "(" + p.Operator() + space + p.Right.String() + ")"
 }
 
 type InfixExpression struct {
-	Token    token.Token
-	Left     Expression
-	Operator string
-	Right    Expression
+	Token token.Token
+	Left  Expression
+	Right Expression
+}
+
+func (i *InfixExpression) Operator() string {
+	return i.Token.Literal
 }
 
 func (i *InfixExpression) TokenLiteral() string {
@@ -56,7 +62,7 @@ func (i *InfixExpression) TokenLiteral() string {
 }
 
 func (i *InfixExpression) String() string {
-	return "(" + i.Left.String() + " " + i.Operator + " " + i.Right.String() + ")"
+	return "(" + i.Left.String() + " " + i.Operator() + " " + i.Right.String() + ")"
 }
 
 type NullLiteral struct {
@@ -80,6 +86,10 @@ func (b *BooleanLiteral) TokenLiteral() string {
 
 func (b *BooleanLiteral) String() string {
 	return b.Token.Literal
+}
+
+func (b *BooleanLiteral) Value() bool {
+	return b.Token.Type == token.TRUE
 }
 
 type CallExpression struct {

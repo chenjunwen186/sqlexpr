@@ -77,6 +77,7 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerPrefix(token.MINUS, p.parsePrefixExpression)
 	p.registerPrefix(token.PLUS, p.parsePrefixExpression)
 	p.registerPrefix(token.LPAREN, p.parseGroupedExpression)
+	p.registerPrefix(token.DISTINCT, p.parsePrefixExpression)
 
 	p.infixParseFns = make(map[token.Type]infixParseFn)
 	p.registerInfix(token.EQ, p.parseInfixExpression)
@@ -105,7 +106,7 @@ func (p *Parser) parseExpression(precedence int) (ast.Expression, error) {
 		return nil, err
 	}
 
-	for !p.peekTokenIs(token.EOF) && precedence < p.peekPrecedence() {
+	for precedence < p.peekPrecedence() {
 		infix := p.infixParseFns[p.peekToken.Type]
 		if infix == nil {
 			return nil, fmt.Errorf("no infix parse function for %s found", p.peekToken.Type)
@@ -168,20 +169,22 @@ func (p *Parser) curPrecedence() int {
 
 func (p *Parser) parsePrefixExpression() (ast.Expression, error) {
 	expr := &ast.PrefixExpression{
-		Token:    p.curToken,
-		Operator: p.curToken.Literal,
+		Token: p.curToken,
 	}
 	p.nextToken()
 	var err error
 	expr.Right, err = p.parseExpression(PREFIX)
+	if err != nil {
+		return nil, err
+	}
+
 	return expr, err
 }
 
 func (p *Parser) parseInfixExpression(left ast.Expression) (ast.Expression, error) {
 	expr := &ast.InfixExpression{
-		Token:    p.curToken,
-		Operator: p.curToken.Literal,
-		Left:     left,
+		Token: p.curToken,
+		Left:  left,
 	}
 	precedence := p.curPrecedence()
 	p.nextToken()

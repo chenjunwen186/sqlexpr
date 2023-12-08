@@ -247,6 +247,10 @@ func (l *Lexer) NextToken() token.Token {
 
 	case '`':
 		//TODO: IDENT_QUOTED
+	case '"':
+		//TODO
+	case '[':
+		//TODO
 
 	case '0':
 		next := l.peekChar()

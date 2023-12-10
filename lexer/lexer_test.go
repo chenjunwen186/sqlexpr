@@ -107,7 +107,13 @@ func TestOperators(t *testing.T) {
 	- * / %
 	& |
 	|| << >> ~
-	>= <= <=> <> < >`
+	IS IS NOT
+	BETWEEN NOT
+	BETWEEN
+	NOT LIKE LIKE
+	>= <= <=> <> < >
+	CASE WHEN x > 1 Then 1 ELSE 0 END
+`
 	expected := ExpectedList{
 		{token.PLUS, "+"},
 		{token.MINUS, "-"},
@@ -120,12 +126,28 @@ func TestOperators(t *testing.T) {
 		{token.LT2, "<<"},
 		{token.RT2, ">>"},
 		{token.TILDE, "~"},
+		{token.IS, "IS"},
+		{token.IS_NOT, "IS NOT"},
+		{token.BETWEEN, "BETWEEN"},
+		{token.NOT_BETWEEN, "NOT BETWEEN"},
+		{token.NOT_LIKE, "NOT LIKE"},
+		{token.LIKE, "LIKE"},
 		{token.GT_EQ, ">="},
 		{token.LT_EQ, "<="},
 		{token.LT_EQ_GT, "<=>"},
 		{token.NOT_EQ2, "<>"},
 		{token.LT, "<"},
 		{token.GT, ">"},
+		{token.CASE, "CASE"},
+		{token.WHEN, "WHEN"},
+		{token.IDENT, "x"},
+		{token.GT, ">"},
+		{token.NUMBER, "1"},
+		{token.THEN, "Then"},
+		{token.NUMBER, "1"},
+		{token.ELSE, "ELSE"},
+		{token.NUMBER, "0"},
+		{token.END, "END"},
 		{token.EOF, ""},
 	}
 

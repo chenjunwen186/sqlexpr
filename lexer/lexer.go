@@ -13,12 +13,20 @@ type Lexer struct {
 	position     int
 	nextPosition int
 	char         rune
+
+	nextToken token.Token
 }
 
 func New(input string) *Lexer {
 	l := &Lexer{input: []rune(input)}
 	l.readChar()
+
+	l.nextToken = l.move()
 	return l
+}
+
+func (l *Lexer) Len() int {
+	return len(l.input)
 }
 
 func (l *Lexer) readChar() {
@@ -151,6 +159,30 @@ func newToken(tokenType token.Type, ch rune) token.Token {
 }
 
 func (l *Lexer) NextToken() token.Token {
+	tok := l.nextToken
+	l.nextToken = l.move()
+	if tok.Type == token.IS && l.nextToken.Type == token.NOT {
+		tok = token.Token{Type: token.IS_NOT, Literal: "IS NOT"}
+		l.nextToken = l.move()
+		return tok
+	} else if tok.Type == token.NOT && l.nextToken.Type == token.IN {
+		tok = token.Token{Type: token.NOT_IN, Literal: "NOT IN"}
+		l.nextToken = l.move()
+		return tok
+	} else if tok.Type == token.NOT && l.nextToken.Type == token.BETWEEN {
+		tok = token.Token{Type: token.NOT_BETWEEN, Literal: "NOT BETWEEN"}
+		l.nextToken = l.move()
+		return tok
+	} else if tok.Type == token.NOT && l.nextToken.Type == token.LIKE {
+		tok = token.Token{Type: token.NOT_LIKE, Literal: "NOT LIKE"}
+		l.nextToken = l.move()
+		return tok
+	}
+
+	return tok
+}
+
+func (l *Lexer) move() token.Token {
 	var tok token.Token
 	l.skipWhitespace()
 
@@ -165,6 +197,14 @@ func (l *Lexer) NextToken() token.Token {
 
 	case '=':
 		tok = newToken(token.EQ, l.char)
+
+	case '!':
+		if l.peekChar() == '=' {
+			l.readChar()
+			tok = token.Token{Type: token.NOT_EQ1, Literal: "!="}
+		} else {
+			tok = token.NewIllegalToken("not support `!`")
+		}
 
 	case '(':
 		tok = newToken(token.LPAREN, l.char)
@@ -259,7 +299,7 @@ func (l *Lexer) NextToken() token.Token {
 		} else if next == 'x' || next == 'X' {
 			//TODO
 		} else {
-			//TODO
+			tok = l.readDecimal()
 		}
 
 	case 0:
@@ -276,7 +316,8 @@ func (l *Lexer) NextToken() token.Token {
 			return tok
 		} else if l.isIdentifierStart() {
 			ident := l.readIdentifier()
-			return token.LookupIdent(ident)
+			tok = token.LookupIdent(ident)
+			return tok
 		}
 
 		tok = token.Token{Type: token.ILLEGAL, Literal: string(l.char)}

@@ -53,8 +53,8 @@ type InfixExpression struct {
 	Right Expression
 }
 
-func (i *InfixExpression) Operator() string {
-	return i.Token.Literal
+func (i *InfixExpression) Operator() token.Type {
+	return i.Token.Type
 }
 
 func (i *InfixExpression) TokenLiteral() string {
@@ -62,7 +62,7 @@ func (i *InfixExpression) TokenLiteral() string {
 }
 
 func (i *InfixExpression) String() string {
-	return "(" + i.Left.String() + " " + i.Operator() + " " + i.Right.String() + ")"
+	return "(" + i.Left.String() + " " + string(i.Operator()) + " " + i.Right.String() + ")"
 }
 
 type NullLiteral struct {
@@ -93,9 +93,9 @@ func (b *BooleanLiteral) Value() bool {
 }
 
 type CallExpression struct {
-	Token         token.Token
-	FunctionIdent Identifier
-	Arguments     []Expression
+	Token     token.Token
+	FnName    Identifier
+	Arguments []Expression
 }
 
 func (c *CallExpression) TokenLiteral() string {
@@ -108,7 +108,7 @@ func (c *CallExpression) String() string {
 		args[i] = arg.String()
 	}
 
-	return c.FunctionIdent.Value + "(" + strings.Join(args, ", ") + ")"
+	return c.FnName.Value + "(" + strings.Join(args, ", ") + ")"
 }
 
 type StringLiteral struct {
@@ -136,17 +136,17 @@ func (t *NumberLiteral) String() string {
 	return t.Literal
 }
 
-type CaseExpression struct {
+type CaseWhenExpression struct {
 	Token token.Token
 	Whens []When
 	Else  Expression
 }
 
-func (c *CaseExpression) TokenLiteral() string {
+func (c *CaseWhenExpression) TokenLiteral() string {
 	return c.Token.Literal
 }
 
-func (c *CaseExpression) String() string {
+func (c *CaseWhenExpression) String() string {
 	var whens []string
 	for _, when := range c.Whens {
 		whens = append(whens, when.String())
@@ -169,59 +169,44 @@ func (c *When) String() string {
 	return "WHEN " + c.Cond.String() + " THEN " + c.Then.String()
 }
 
-type InExpression struct {
-	Token token.Token
-}
-
-func (i *InExpression) TokenLiteral() string {
-	return i.Token.Literal
-}
-
-func (i *InExpression) String() string {
-	return i.Token.Literal
-}
-
-type NotInExpression struct {
-}
-
 type BetweenExpression struct {
-	From Expression
-	To   Expression
+	Left  Expression
+	Range Expression
 }
 
 func (b *BetweenExpression) TokenLiteral() string {
 	return token.BETWEEN
 }
 
+func (b *BetweenExpression) String() string {
+	return "(" + b.Left.String() + " " + token.BETWEEN + " " + b.Range.String() + ")"
+}
+
 type NotBetweenExpression struct {
-	From Expression
-	To   Expression
+	Left  Expression
+	Range Expression
 }
 
 func (n *NotBetweenExpression) TokenLiteral() string {
 	return token.NOT + " " + token.BETWEEN
 }
 
-type LikeExpression struct {
-	Match Expression
+func (n *NotBetweenExpression) String() string {
+	return "(" + n.Left.String() + " " + token.NOT + " " + token.BETWEEN + " " + n.Range.String() + ")"
 }
 
-func (l *LikeExpression) TokenLiteral() string {
-	return token.LIKE
+type TupleExpression struct {
+	Expressions []Expression
 }
 
-func (l *LikeExpression) String() string {
-	return "LIKE " + l.Match.String()
+func (t *TupleExpression) TokenLiteral() string {
+	return token.LPAREN + token.RPAREN
 }
 
-type NotLikeExpression struct {
-	Match Expression
-}
-
-func (n *NotLikeExpression) TokenLiteral() string {
-	return token.NOT + " " + token.LIKE
-}
-
-func (n *NotLikeExpression) String() string {
-	return "NOT LIKE " + n.Match.String()
+func (t *TupleExpression) String() string {
+	var exprs []string
+	for _, expr := range t.Expressions {
+		exprs = append(exprs, expr.String())
+	}
+	return token.LPAREN + strings.Join(exprs, ", ") + token.RPAREN
 }

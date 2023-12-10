@@ -23,6 +23,11 @@ const (
 
 	NOT = "NOT"
 
+	NOT_IN      = "NOT IN"
+	NOT_LIKE    = "NOT LIKE"
+	NOT_BETWEEN = "NOT BETWEEN"
+	IS_NOT      = "IS NOT"
+
 	PIPE = "|"
 	AMP  = "&"
 
@@ -123,6 +128,8 @@ var keywords = map[string]Type{
 	"TRUE":  TRUE,
 	"FALSE": FALSE,
 	"NULL":  NULL,
+
+	"NOT": NOT,
 
 	"IN":      IN,
 	"BETWEEN": BETWEEN,

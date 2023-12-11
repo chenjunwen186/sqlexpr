@@ -8,6 +8,8 @@ import (
 	"github.com/chenjunwen186/sqlexpr/token"
 )
 
+var EOF rune = 0
+
 type Lexer struct {
 	input        []rune
 	position     int
@@ -31,7 +33,7 @@ func (l *Lexer) Len() int {
 
 func (l *Lexer) readChar() {
 	if l.nextPosition >= len(l.input) {
-		l.char = 0
+		l.char = EOF
 	} else {
 		l.char = l.input[l.nextPosition]
 	}
@@ -56,8 +58,6 @@ func (l *Lexer) isWhitespace() bool {
 	return l.char == ' ' || l.char == '\t' || l.char == '\n' || l.char == '\r'
 }
 
-// Currently only decimal literals are supported
-// TODO: support binary, octal, hexadecimal, scientific notation literals
 func (l *Lexer) readDecimal() token.Token {
 	var b bytes.Buffer
 
@@ -77,29 +77,93 @@ func (l *Lexer) readDecimal() token.Token {
 }
 
 func (l *Lexer) readBinaryNumber() token.Token {
-	panic("not implemented")
+	var b bytes.Buffer
+	b.WriteRune(l.char)
+	l.readChar()
+	b.WriteRune(l.char)
+	l.readChar()
+
+	var isIllegal bool
+	for isDigit(l.char) {
+		if l.char == '0' || l.char == '1' {
+			b.WriteRune(l.char)
+		} else {
+			isIllegal = true
+			b.WriteRune(l.char)
+		}
+		l.readChar()
+	}
+
+	if isIllegal {
+		return token.NewIllegalToken(fmt.Sprintf("invalid binary number literal: %q", b.String()))
+	}
+
+	return token.Token{Type: token.NUMBER, Literal: b.String()}
 }
 
 func (l *Lexer) readOctalNumber() token.Token {
-	panic("not implemented")
+	var b bytes.Buffer
+	b.WriteRune(l.char)
+	l.readChar()
+	b.WriteRune(l.char)
+	l.readChar()
+
+	var isIllegal bool
+	for isDigit(l.char) {
+		if l.char >= '0' && l.char <= '7' {
+			b.WriteRune(l.char)
+		} else {
+			isIllegal = true
+			b.WriteRune(l.char)
+		}
+		l.readChar()
+	}
+
+	if isIllegal {
+		return token.NewIllegalToken(fmt.Sprintf("invalid octal number literal: %q", b.String()))
+	}
+
+	return token.Token{Type: token.NUMBER, Literal: b.String()}
 }
 
 func (l *Lexer) readHexadecimalNumber() token.Token {
-	panic("not implemented")
+	var b bytes.Buffer
+	b.WriteRune(l.char)
+	l.readChar()
+	b.WriteRune(l.char)
+	l.readChar()
+
+	var isIllegal bool
+	for isDigit(l.char) || unicode.IsLetter(l.char) {
+		if (l.char >= '0' && l.char <= '9') || (l.char >= 'a' && l.char <= 'f') || (l.char >= 'A' && l.char <= 'F') {
+			b.WriteRune(l.char)
+		} else {
+			isIllegal = true
+			b.WriteRune(l.char)
+		}
+		l.readChar()
+	}
+
+	if isIllegal {
+		return token.NewIllegalToken(fmt.Sprintf("invalid hexadecimal number literal: %q", b.String()))
+	}
+
+	return token.Token{Type: token.NUMBER, Literal: b.String()}
 }
 
 func (l *Lexer) readScientificNotationNumber() token.Token {
 	panic("not implemented")
 }
 
-func (l *Lexer) readString() (string, error) {
+func (l *Lexer) readString() token.Token {
 	var b bytes.Buffer
 
+	var hasComment bool
 	for {
 		l.readChar()
 
-		if l.char == '0' {
-			return "", fmt.Errorf("unterminated string")
+		if l.char == EOF {
+			return token.NewIllegalToken(fmt.Sprintf("unexpected EOF: '%s", b.String()))
 		}
 
 		if l.char == '\'' {
@@ -107,13 +171,17 @@ func (l *Lexer) readString() (string, error) {
 		}
 
 		if l.char == '-' && l.peekChar() == '-' {
-			return "", fmt.Errorf("`--` is not supported in string")
+			hasComment = true
 		}
 
 		b.WriteRune(l.char)
 	}
 
-	return b.String(), nil
+	if hasComment {
+		return token.NewIllegalToken(fmt.Sprintf("not support SQL comment `--` in string literal: '%s'", b.String()))
+	}
+
+	return token.Token{Type: token.STRING, Literal: b.String()}
 }
 
 func (l *Lexer) readIdentifier() string {
@@ -278,12 +346,7 @@ func (l *Lexer) move() token.Token {
 		}
 
 	case '\'':
-		str, err := l.readString()
-		if err != nil {
-			tok = token.Token{Type: token.ILLEGAL, Literal: err.Error()}
-		} else {
-			tok = token.Token{Type: token.STRING, Literal: str}
-		}
+		tok = l.readString()
 
 	case '`':
 		//TODO: IDENT_QUOTED
@@ -295,14 +358,23 @@ func (l *Lexer) move() token.Token {
 	case '0':
 		next := l.peekChar()
 		if next == 'b' || next == 'B' {
-			//TODO
+			// binary number
+			tok = l.readBinaryNumber()
 		} else if next == 'x' || next == 'X' {
-			//TODO
-		} else {
+			// hexadecimal number
+			tok = l.readHexadecimalNumber()
+		} else if isDigit(next) {
+			// octal number
+			tok = l.readOctalNumber()
+		} else if next == '.' {
+			// 0.xxx
 			tok = l.readDecimal()
+		} else {
+			// 0
+			tok = newToken(token.NUMBER, l.char)
 		}
 
-	case 0:
+	case EOF:
 		tok.Literal = ""
 		tok.Type = token.EOF
 

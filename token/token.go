@@ -67,6 +67,8 @@ const (
 	THEN = "THEN"
 	ELSE = "ELSE"
 
+	FROM = "FROM"
+
 	TRUE  = "TRUE"
 	FALSE = "FALSE"
 	NULL  = "NULL"
@@ -124,6 +126,7 @@ var keywords = map[string]Type{
 	"WHEN": WHEN,
 	"THEN": THEN,
 	"ELSE": ELSE,
+	"FROM": FROM,
 
 	"TRUE":  TRUE,
 	"FALSE": FALSE,
@@ -165,7 +168,6 @@ func registerNotSupportKeyword(keywords ...string) {
 func init() {
 	registerNotSupportKeyword(
 		"SELECT",
-		"FROM",
 		"WHERE",
 		"GROUP",
 		"BY",

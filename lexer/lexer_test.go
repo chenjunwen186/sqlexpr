@@ -26,15 +26,34 @@ func (ei ExpectedList) testAll(t *testing.T, name string, l *Lexer) {
 }
 
 func TestStringLiteral(t *testing.T) {
-	input := `'hello world'`
-	expected := ExpectedList{
-		{token.STRING, "hello world"},
-		{token.EOF, ""},
+	type TestCase struct {
+		input string
+		tok   token.Token
 	}
 
-	l := New(input)
+	newToken := func(t token.Type, l string) token.Token {
+		return token.Token{
+			Type:    t,
+			Literal: l,
+		}
+	}
 
-	expected.testAll(t, "TestStringLiteral", l)
+	inputs := []TestCase{
+		{`'hello world'`, newToken(token.STRING, "hello world")},
+		{"'hello world", newToken(token.ILLEGAL, `unexpected EOF: 'hello world`)},
+		{`'hello -- world'`, newToken(token.ILLEGAL, "not support SQL comment `--` in string literal: 'hello -- world'")},
+	}
+
+	for _, input := range inputs {
+		l := New(input.input)
+		tok := l.NextToken()
+		if tok.Type != input.tok.Type {
+			t.Errorf("tok.Type wrong. expected=%q, got=%q", input.tok.Type, tok.Type)
+		}
+		if tok.Literal != input.tok.Literal {
+			t.Errorf("tok.Literal wrong. expected=%q, got=%q", input.tok.Literal, tok.Literal)
+		}
+	}
 }
 
 func TestBooleanLiteral(t *testing.T) {
@@ -113,6 +132,8 @@ func TestOperators(t *testing.T) {
 	NOT LIKE LIKE
 	>= <= <=> <> < >
 	CASE WHEN x > 1 Then 1 ELSE 0 END
+	0b01010 0b01230 01234567 018
+	0x1234af 0X123g
 `
 	expected := ExpectedList{
 		{token.PLUS, "+"},
@@ -148,6 +169,12 @@ func TestOperators(t *testing.T) {
 		{token.ELSE, "ELSE"},
 		{token.NUMBER, "0"},
 		{token.END, "END"},
+		{token.NUMBER, "0b01010"},
+		{token.ILLEGAL, `invalid binary number literal: "0b01230"`},
+		{token.NUMBER, "01234567"},
+		{token.ILLEGAL, `invalid octal number literal: "018"`},
+		{token.NUMBER, "0x1234af"},
+		{token.ILLEGAL, `invalid hexadecimal number literal: "0X123g"`},
 		{token.EOF, ""},
 	}
 

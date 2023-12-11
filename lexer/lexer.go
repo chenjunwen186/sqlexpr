@@ -58,19 +58,64 @@ func (l *Lexer) isWhitespace() bool {
 	return l.char == ' ' || l.char == '\t' || l.char == '\n' || l.char == '\r'
 }
 
+// Support 100, 1.0, 2e2, 1.23e3, 0.23e-3
 func (l *Lexer) readDecimal() token.Token {
 	var b bytes.Buffer
 
+	var errors []error
+	if l.char == '.' {
+		errors = append(errors, fmt.Errorf("decimal not start with `.`"))
+	}
+
+	b.WriteRune(l.char)
+	l.readChar()
+
 	var hasPeriod bool
-	for isDigit(l.char) || (l.char == '.' && isDigit(l.peekChar())) {
+	for isDigit(l.char) || l.char == '.' {
 		if l.char == '.' {
-			if hasPeriod {
-				return token.NewIllegalToken("invalid number literal")
+			if !isDigit(l.peekChar()) {
+				b.WriteRune(l.char)
+				errors = append(errors, fmt.Errorf("`.` not followed by digit"))
 			}
+
+			if hasPeriod {
+				b.WriteRune(l.char)
+				errors = append(errors, fmt.Errorf("multiple `.` in number"))
+			}
+
 			hasPeriod = true
 		}
 		b.WriteRune(l.char)
 		l.readChar()
+	}
+
+	if l.char == 'e' || l.char == 'E' {
+		b.WriteRune(l.char)
+		l.readChar()
+
+		if l.char == '+' || l.char == '-' {
+			b.WriteRune(l.char)
+			l.readChar()
+		}
+
+		if !isDigit(l.char) {
+			b.WriteRune(l.char)
+			errors = append(errors, fmt.Errorf("exponent not followed by digit"))
+		}
+
+		for isDigit(l.char) {
+			b.WriteRune(l.char)
+			l.readChar()
+		}
+	}
+
+	if len(errors) > 0 {
+		errMsg := "number literal: " + b.String() + " has error: "
+		for _, e := range errors {
+			errMsg += e.Error() + "; "
+		}
+
+		return token.NewIllegalToken(errMsg)
 	}
 
 	return token.Token{Type: token.NUMBER, Literal: b.String()}
@@ -151,10 +196,6 @@ func (l *Lexer) readHexadecimalNumber() token.Token {
 	return token.Token{Type: token.NUMBER, Literal: b.String()}
 }
 
-func (l *Lexer) readScientificNotationNumber() token.Token {
-	panic("not implemented")
-}
-
 func (l *Lexer) readString() token.Token {
 	var b bytes.Buffer
 
@@ -184,6 +225,64 @@ func (l *Lexer) readString() token.Token {
 	return token.Token{Type: token.STRING, Literal: b.String()}
 }
 
+func (l *Lexer) readBackQuoteIdentifier() token.Token {
+	var b bytes.Buffer
+
+	var hasComment bool
+	for {
+		l.readChar()
+
+		if l.char == EOF {
+			return token.NewIllegalToken(fmt.Sprintf("unexpected EOF: `%s", b.String()))
+		}
+
+		if l.char == '`' {
+			break
+		}
+
+		if l.char == '-' && l.peekChar() == '-' {
+			hasComment = true
+		}
+
+		b.WriteRune(l.char)
+	}
+
+	if hasComment {
+		return token.NewIllegalToken(fmt.Sprintf("not support SQL comment `--` in back quote identifier: `%s`", b.String()))
+	}
+
+	return token.Token{Type: token.BACK_QUOTE_IDENT, Literal: "`" + b.String() + "`"}
+}
+
+func (l *Lexer) readDoubleQuoteIdentifier() token.Token {
+	var b bytes.Buffer
+
+	var hasComment bool
+	for {
+		l.readChar()
+
+		if l.char == EOF {
+			return token.NewIllegalToken(fmt.Sprintf(`unexpected EOF: "%s`, b.String()))
+		}
+
+		if l.char == '"' {
+			break
+		}
+
+		if l.char == '-' && l.peekChar() == '-' {
+			hasComment = true
+		}
+
+		b.WriteRune(l.char)
+	}
+
+	if hasComment {
+		return token.NewIllegalToken(fmt.Sprintf("not support SQL comment `--` in double quote identifier: \"%s\"", b.String()))
+	}
+
+	return token.Token{Type: token.DOUBLE_QUOTE_IDENT, Literal: `"` + b.String() + `"`}
+}
+
 func (l *Lexer) readIdentifier() string {
 	var b bytes.Buffer
 
@@ -208,13 +307,6 @@ func (l *Lexer) isIdentifierStart() bool {
 		return true
 	}
 
-	return false
-}
-
-func (l *Lexer) isDecimalStart() bool {
-	if isDigit(l.char) || (l.char == '.' && isDigit(l.peekChar())) {
-		return true
-	}
 	return false
 }
 
@@ -345,13 +437,21 @@ func (l *Lexer) move() token.Token {
 			tok = newToken(token.GT, l.char)
 		}
 
+	case '.':
+		if isDigit(l.peekChar()) {
+			tok = l.readDecimal()
+		} else {
+			tok = newToken(token.PERIOD, l.char)
+		}
+
 	case '\'':
 		tok = l.readString()
 
 	case '`':
-		//TODO: IDENT_QUOTED
+		tok = l.readBackQuoteIdentifier()
 	case '"':
-		//TODO
+		tok = l.readDoubleQuoteIdentifier()
+
 	case '[':
 		//TODO
 
@@ -379,12 +479,8 @@ func (l *Lexer) move() token.Token {
 		tok.Type = token.EOF
 
 	default:
-		if l.isDecimalStart() {
+		if isDigit(l.char) {
 			tok = l.readDecimal()
-			return tok
-		} else if l.char == '.' && !isDigit(l.peekChar()) {
-			tok = newToken(token.PERIOD, l.char)
-			l.readChar() // Move to next char
 			return tok
 		} else if l.isIdentifierStart() {
 			ident := l.readIdentifier()

@@ -88,14 +88,17 @@ func TestNullLiteral(t *testing.T) {
 }
 
 func TestNumberPeriodLiteral(t *testing.T) {
-	input := `. 123 . 123.456 .456 .`
+	input := `. 123 . 123.456 0.456 . 2e2 0.2e+3 1.23e-2`
 	expected := ExpectedList{
 		{token.PERIOD, "."},
 		{token.NUMBER, "123"},
 		{token.PERIOD, "."},
 		{token.NUMBER, "123.456"},
-		{token.NUMBER, ".456"},
+		{token.NUMBER, "0.456"},
 		{token.PERIOD, "."},
+		{token.NUMBER, "2e2"},
+		{token.NUMBER, "0.2e+3"},
+		{token.NUMBER, "1.23e-2"},
 		{token.EOF, ""},
 	}
 
@@ -118,6 +121,38 @@ func TestIdentifiers(t *testing.T) {
 	l := New(input)
 
 	expected.testAll(t, "TestIdentifiers", l)
+}
+
+func TestBackQuoteIdentifiers(t *testing.T) {
+	input := "`Hello:@` `hello world` `hello ` `hello -- world` `hello "
+	expected := ExpectedList{
+		{token.BACK_QUOTE_IDENT, "`Hello:@`"},
+		{token.BACK_QUOTE_IDENT, "`hello world`"},
+		{token.BACK_QUOTE_IDENT, "`hello `"},
+		{token.ILLEGAL, "not support SQL comment `--` in back quote identifier: `hello -- world`"},
+		{token.ILLEGAL, "unexpected EOF: `hello "},
+		{token.EOF, ""},
+	}
+
+	l := New(input)
+
+	expected.testAll(t, "TestBackQuoteIdentifiers", l)
+}
+
+func TestDoubleQuoteIdentifiers(t *testing.T) {
+	input := `"Hello:@" "hello world" "hello " "hello -- world" "hello `
+	expected := ExpectedList{
+		{token.DOUBLE_QUOTE_IDENT, `"Hello:@"`},
+		{token.DOUBLE_QUOTE_IDENT, `"hello world"`},
+		{token.DOUBLE_QUOTE_IDENT, `"hello "`},
+		{token.ILLEGAL, "not support SQL comment `--` in double quote identifier: \"hello -- world\""},
+		{token.ILLEGAL, `unexpected EOF: "hello `},
+		{token.EOF, ""},
+	}
+
+	l := New(input)
+
+	expected.testAll(t, "TestBackQuoteIdentifiers", l)
 }
 
 func TestOperators(t *testing.T) {

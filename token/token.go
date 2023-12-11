@@ -14,9 +14,9 @@ const (
 
 	IDENT = "IDENT"
 
-	IDENT_QUOTED1 = "IDENT_QUOTED" // `ident` for MySQL, Sqlite, Clickhouse, ORACLE, SparkSQL
-	IDENT_QUOTED2 = "IDENT_QUOTED" // "ident" for PgSQL
-	IDENT_QUOTED3 = "IDENT_QUOTED" // [ident] for MSSQL
+	BACK_QUOTE_IDENT   = "BACK_QUOTE_IDENT"   // `ident` for MySQL, Sqlite, Clickhouse, ORACLE, SparkSQL
+	DOUBLE_QUOTE_IDENT = "DOUBLE_QUOTE_IDENT" // "ident" for PgSQL
+	BRACKET_IDENT      = "BRACKET_IDENT"      // [ident] for MSSQL
 
 	STRING = "STRING"
 	NUMBER = "NUMBER"

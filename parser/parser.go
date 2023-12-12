@@ -373,13 +373,7 @@ func (p *Parser) parseGroupedOrTupleExpression() (ast.Expression, error) {
 }
 
 func (p *Parser) parseCallExpression(fn ast.Expression) (ast.Expression, error) {
-	// SQL only support identifier as callee
-	ident, ok := fn.(*ast.Identifier)
-	if !ok {
-		return nil, fmt.Errorf("expected identifier, got %s", fn.TokenLiteral())
-	}
-
-	expr := &ast.CallExpression{Token: p.curToken, FnName: *ident}
+	expr := &ast.CallExpression{Token: p.curToken, Fn: fn}
 	var err error
 	expr.Arguments, err = p.parseExpressionList(token.RPAREN)
 	if err != nil {

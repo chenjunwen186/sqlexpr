@@ -16,7 +16,10 @@ const (
 
 	BACK_QUOTE_IDENT   = "BACK_QUOTE_IDENT"   // `ident` for MySQL, Sqlite, Clickhouse, ORACLE, SparkSQL
 	DOUBLE_QUOTE_IDENT = "DOUBLE_QUOTE_IDENT" // "ident" for PgSQL
-	BRACKET_IDENT      = "BRACKET_IDENT"      // [ident] for MSSQL
+
+	// Currently not support
+	// Because it conflicts with Clickhouse's Array Literal
+	// BRACKET_IDENT = "BRACKET_IDENT" // [ident] for MSSQL
 
 	STRING = "STRING"
 	NUMBER = "NUMBER"
@@ -44,8 +47,10 @@ const (
 
 	COMMA = ","
 
-	LPAREN = "("
-	RPAREN = ")"
+	LPAREN   = "("
+	RPAREN   = ")"
+	LBRACKET = "["
+	RBRACKET = "]"
 
 	EQ       = "="
 	NOT_EQ1  = "!="

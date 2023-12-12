@@ -88,7 +88,14 @@ func TestNullLiteral(t *testing.T) {
 }
 
 func TestNumberPeriodLiteral(t *testing.T) {
-	input := `. 123 . 123.456 0.456 . 2e2 0.2e+3 1.23e-2`
+	input := `. 123
+	. 123.456
+	0.456 . 2e2
+	0.2e+3 1.23e-2 12.
+	0 . .
+	0e+3 . 0e-3
+	0e
+	`
 	expected := ExpectedList{
 		{token.PERIOD, "."},
 		{token.NUMBER, "123"},
@@ -99,6 +106,14 @@ func TestNumberPeriodLiteral(t *testing.T) {
 		{token.NUMBER, "2e2"},
 		{token.NUMBER, "0.2e+3"},
 		{token.NUMBER, "1.23e-2"},
+		{token.NUMBER, "12."},
+		{token.NUMBER, "0"},
+		{token.PERIOD, "."},
+		{token.PERIOD, "."},
+		{token.NUMBER, "0e+3"},
+		{token.PERIOD, "."},
+		{token.NUMBER, "0e-3"},
+		{token.ILLEGAL, "invalid number literal: \"0e\""},
 		{token.EOF, ""},
 	}
 

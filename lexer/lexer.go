@@ -58,69 +58,81 @@ func (l *Lexer) isWhitespace() bool {
 	return l.char == ' ' || l.char == '\t' || l.char == '\n' || l.char == '\r'
 }
 
-// Support 100, 1.0, 2e2, 1.23e3, 0.23e-3
-func (l *Lexer) readDecimal() token.Token {
+// Start with [\d]
+// Support 0 100 1.0 2e2 1.23e3 0.23e-3 0.1e+3 12. 1.e3 0e+3, 0b01, 0x1af 0765
+// Not support 1e 1e+ 1e- 1e1.2 1e1e2 .12
+// 1e+3+3 => ((1e+3)+3)
+func (l *Lexer) readNumber() token.Token {
 	var b bytes.Buffer
 
-	var errors []error
-	if l.char == '.' {
-		errors = append(errors, fmt.Errorf("decimal not start with `.`"))
-	}
-
-	b.WriteRune(l.char)
-	l.readChar()
-
-	var hasPeriod bool
-	for isDigit(l.char) || l.char == '.' {
-		if l.char == '.' {
-			if !isDigit(l.peekChar()) {
-				b.WriteRune(l.char)
-				errors = append(errors, fmt.Errorf("`.` not followed by digit"))
-			}
-
-			if hasPeriod {
-				b.WriteRune(l.char)
-				errors = append(errors, fmt.Errorf("multiple `.` in number"))
-			}
-
-			hasPeriod = true
+	if l.char == '0' {
+		peekChar := l.peekChar()
+		if peekChar == 'b' || peekChar == 'B' {
+			return l.readBinaryNumber()
+		} else if peekChar == 'x' || peekChar == 'X' {
+			return l.readHexadecimalNumber()
+		} else if unicode.IsDigit(peekChar) {
+			return l.readOctalNumber()
 		}
-		b.WriteRune(l.char)
-		l.readChar()
 	}
 
-	if l.char == 'e' || l.char == 'E' {
-		b.WriteRune(l.char)
-		l.readChar()
+	var (
+		hasPeriod   bool
+		hasExponent bool
+		hasSign     bool
 
+		isInvalid bool
+	)
+
+	isExponent := func(char rune) bool {
+		return char == 'e' || char == 'E'
+	}
+
+	for unicode.IsLetter(l.char) || unicode.IsDigit(l.char) || l.char == '.' || l.char == '+' || l.char == '-' {
 		if l.char == '+' || l.char == '-' {
-			b.WriteRune(l.char)
-			l.readChar()
+			if hasSign {
+				// 12.e+3+3 => ((12.e+3)+3)
+				// 12.e-3-3 => ((12.e-3)-3)
+				break
+			} else {
+				hasSign = true
+			}
+		} else if l.char == '.' {
+			if hasPeriod {
+				isInvalid = true
+			} else {
+				hasPeriod = true
+			}
+		} else if isExponent(l.char) {
+			if hasExponent {
+				isInvalid = true
+			} else {
+				hasExponent = true
+			}
+
+			if l.peekChar() != '+' && l.peekChar() != '-' && !unicode.IsDigit(l.peekChar()) {
+				isInvalid = true
+			}
+		} else if hasExponent {
+			if !unicode.IsDigit(l.char) {
+				isInvalid = true
+			}
+		} else if unicode.IsLetter(l.char) {
+			isInvalid = true
 		}
 
-		if !isDigit(l.char) {
-			b.WriteRune(l.char)
-			errors = append(errors, fmt.Errorf("exponent not followed by digit"))
-		}
-
-		for isDigit(l.char) {
-			b.WriteRune(l.char)
-			l.readChar()
-		}
+		b.WriteRune(l.char)
+		l.readChar()
 	}
 
-	if len(errors) > 0 {
-		errMsg := "number literal: " + b.String() + " has error: "
-		for _, e := range errors {
-			errMsg += e.Error() + "; "
-		}
-
-		return token.NewIllegalToken(errMsg)
+	if isInvalid {
+		return token.NewIllegalToken(fmt.Sprintf("invalid number literal: %q", b.String()))
 	}
 
 	return token.Token{Type: token.NUMBER, Literal: b.String()}
 }
 
+// Start with 0[bB]
 func (l *Lexer) readBinaryNumber() token.Token {
 	var b bytes.Buffer
 	b.WriteRune(l.char)
@@ -129,7 +141,7 @@ func (l *Lexer) readBinaryNumber() token.Token {
 	l.readChar()
 
 	var isIllegal bool
-	for isDigit(l.char) {
+	for unicode.IsDigit(l.char) {
 		if l.char == '0' || l.char == '1' {
 			b.WriteRune(l.char)
 		} else {
@@ -146,6 +158,7 @@ func (l *Lexer) readBinaryNumber() token.Token {
 	return token.Token{Type: token.NUMBER, Literal: b.String()}
 }
 
+// Start with 0[\d]
 func (l *Lexer) readOctalNumber() token.Token {
 	var b bytes.Buffer
 	b.WriteRune(l.char)
@@ -154,7 +167,7 @@ func (l *Lexer) readOctalNumber() token.Token {
 	l.readChar()
 
 	var isIllegal bool
-	for isDigit(l.char) {
+	for unicode.IsDigit(l.char) {
 		if l.char >= '0' && l.char <= '7' {
 			b.WriteRune(l.char)
 		} else {
@@ -171,6 +184,7 @@ func (l *Lexer) readOctalNumber() token.Token {
 	return token.Token{Type: token.NUMBER, Literal: b.String()}
 }
 
+// Start with 0[xX]
 func (l *Lexer) readHexadecimalNumber() token.Token {
 	var b bytes.Buffer
 	b.WriteRune(l.char)
@@ -179,7 +193,7 @@ func (l *Lexer) readHexadecimalNumber() token.Token {
 	l.readChar()
 
 	var isIllegal bool
-	for isDigit(l.char) || unicode.IsLetter(l.char) {
+	for unicode.IsDigit(l.char) || unicode.IsLetter(l.char) {
 		if (l.char >= '0' && l.char <= '9') || (l.char >= 'a' && l.char <= 'f') || (l.char >= 'A' && l.char <= 'F') {
 			b.WriteRune(l.char)
 		} else {
@@ -286,7 +300,7 @@ func (l *Lexer) readDoubleQuoteIdentifier() token.Token {
 func (l *Lexer) readIdentifier() string {
 	var b bytes.Buffer
 
-	for isIdentifier(l.char) || isDigit(l.char) {
+	for isIdentifier(l.char) || unicode.IsDigit(l.char) {
 		b.WriteRune(l.char)
 		l.readChar()
 	}
@@ -308,10 +322,6 @@ func (l *Lexer) isIdentifierStart() bool {
 	}
 
 	return false
-}
-
-func isDigit(char rune) bool {
-	return char >= '0' && char <= '9'
 }
 
 func newToken(tokenType token.Type, ch rune) token.Token {
@@ -370,6 +380,11 @@ func (l *Lexer) move() token.Token {
 		tok = newToken(token.LPAREN, l.char)
 	case ')':
 		tok = newToken(token.RPAREN, l.char)
+	case '[':
+		tok = newToken(token.LBRACKET, l.char)
+	case ']':
+		tok = newToken(token.RBRACKET, l.char)
+
 	case ',':
 		tok = newToken(token.COMMA, l.char)
 	case '+':
@@ -377,7 +392,7 @@ func (l *Lexer) move() token.Token {
 	case '-':
 		if l.peekChar() == '-' {
 			l.readChar()
-			// Not support `--``
+			// Not support `--`
 			tok = token.NewIllegalToken("not support SQL comment `--`")
 		} else if l.peekChar() == '>' {
 			l.readChar()
@@ -391,7 +406,13 @@ func (l *Lexer) move() token.Token {
 			tok = newToken(token.MINUS, l.char)
 		}
 	case '*':
-		tok = newToken(token.ASTERISK, l.char)
+		if l.peekChar() == '/' {
+			l.readChar()
+			// Not support `*/`
+			tok = token.NewIllegalToken("not support SQL comment `*/`")
+		} else {
+			tok = newToken(token.ASTERISK, l.char)
+		}
 	case '/':
 		if l.peekChar() == '*' {
 			l.readChar()
@@ -438,11 +459,7 @@ func (l *Lexer) move() token.Token {
 		}
 
 	case '.':
-		if isDigit(l.peekChar()) {
-			tok = l.readDecimal()
-		} else {
-			tok = newToken(token.PERIOD, l.char)
-		}
+		tok = newToken(token.PERIOD, l.char)
 
 	case '\'':
 		tok = l.readString()
@@ -452,35 +469,13 @@ func (l *Lexer) move() token.Token {
 	case '"':
 		tok = l.readDoubleQuoteIdentifier()
 
-	case '[':
-		//TODO
-
-	case '0':
-		next := l.peekChar()
-		if next == 'b' || next == 'B' {
-			// binary number
-			tok = l.readBinaryNumber()
-		} else if next == 'x' || next == 'X' {
-			// hexadecimal number
-			tok = l.readHexadecimalNumber()
-		} else if isDigit(next) {
-			// octal number
-			tok = l.readOctalNumber()
-		} else if next == '.' {
-			// 0.xxx
-			tok = l.readDecimal()
-		} else {
-			// 0
-			tok = newToken(token.NUMBER, l.char)
-		}
-
 	case EOF:
 		tok.Literal = ""
 		tok.Type = token.EOF
 
 	default:
-		if isDigit(l.char) {
-			tok = l.readDecimal()
+		if unicode.IsDigit(l.char) {
+			tok = l.readNumber()
 			return tok
 		} else if l.isIdentifierStart() {
 			ident := l.readIdentifier()

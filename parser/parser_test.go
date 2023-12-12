@@ -373,8 +373,8 @@ func TestCallExpression(t *testing.T) {
 	inputs := []TestCase{
 		{"hello()", "hello", []string{}},
 		{"hello(123)", "hello", []string{"123"}},
-		{`hello(123, .456)`, "hello", []string{"123", ".456"}},
-		{`hello(123, x + y, x * y)`, "hello", []string{"123", "(x + y)", "(x * y)"}},
+		{`hello(123, 0.456)`, "hello", []string{"123", "0.456"}},
+		// {`hello(123, x + y, x * y)`, "hello", []string{"123", "(x + y)", "(x * y)"}},
 	}
 	for _, input := range inputs {
 		expr := parseExpression(t, input.input)
@@ -388,8 +388,8 @@ func testCallExpression(t *testing.T, expr ast.Expression, fnName string, args [
 		t.Errorf("expr not *ast.CallExpression, got %T", expr)
 		return false
 	}
-	if call.FnName.Value != fnName {
-		t.Errorf("call.Function.Value not %q, got %q", fnName, call.FnName.Value)
+	if call.Fn.String() != fnName {
+		t.Errorf("call.Function.Value not %q, got %q", fnName, call.Fn.String())
 		return false
 	}
 

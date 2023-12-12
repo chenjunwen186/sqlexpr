@@ -94,7 +94,7 @@ func (b *BooleanLiteral) Value() bool {
 
 type CallExpression struct {
 	Token     token.Token
-	FnName    Identifier
+	Fn        Expression
 	Arguments []Expression
 }
 
@@ -108,7 +108,7 @@ func (c *CallExpression) String() string {
 		args[i] = arg.String()
 	}
 
-	return c.FnName.Value + "(" + strings.Join(args, ", ") + ")"
+	return c.Fn.String() + "(" + strings.Join(args, ", ") + ")"
 }
 
 type StringLiteral struct {

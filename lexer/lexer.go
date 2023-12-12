@@ -97,6 +97,13 @@ func (l *Lexer) readNumber() token.Token {
 			} else {
 				hasSign = true
 			}
+
+			// 0e+ is invalid
+			// 0e- is invalid
+			// 0e.1 is invalid
+			if !hasExponent || !unicode.IsDigit(l.peekChar()) {
+				isInvalid = true
+			}
 		} else if l.char == '.' {
 			if hasPeriod {
 				isInvalid = true
@@ -308,6 +315,64 @@ func (l *Lexer) readIdentifier() string {
 	return b.String()
 }
 
+func (l *Lexer) readSingleLineComment() token.Token {
+	var b bytes.Buffer
+
+	// Read `--`
+	b.WriteRune(l.char)
+	l.readChar()
+	b.WriteRune(l.char)
+
+	for {
+		l.readChar()
+
+		if l.char == EOF {
+			break
+		}
+
+		if l.char == '\r' && l.peekChar() == '\n' {
+			l.readChar()
+			break
+		}
+
+		if l.char == '\n' {
+			break
+		}
+
+		b.WriteRune(l.char)
+	}
+
+	return token.NewIllegalToken(fmt.Sprintf(`not support SQL comment: "%s"`, b.String()))
+}
+
+func (l *Lexer) readMultilineComment() token.Token {
+	var b bytes.Buffer
+
+	// Read `/*`
+	b.WriteRune(l.char)
+	l.readChar()
+	b.WriteRune(l.char)
+
+	for {
+		l.readChar()
+
+		if l.char == EOF {
+			return token.NewIllegalToken(fmt.Sprintf(`unexpected EOF: "%s"`, b.String()))
+		}
+
+		if l.char == '*' && l.peekChar() == '/' {
+			b.WriteRune(l.char)
+			l.readChar()
+			b.WriteRune(l.char)
+			break
+		}
+
+		b.WriteRune(l.char)
+	}
+
+	return token.NewIllegalToken(fmt.Sprintf(`not support SQL comment: "%s"`, b.String()))
+}
+
 func isIdentifier(char rune) bool {
 	if unicode.IsLetter(char) || unicode.IsDigit(char) || char == '_' {
 		return true
@@ -391,9 +456,7 @@ func (l *Lexer) move() token.Token {
 		tok = newToken(token.PLUS, l.char)
 	case '-':
 		if l.peekChar() == '-' {
-			l.readChar()
-			// Not support `--`
-			tok = token.NewIllegalToken("not support SQL comment `--`")
+			tok = l.readSingleLineComment()
 		} else if l.peekChar() == '>' {
 			l.readChar()
 			if l.peekChar() == '>' {
@@ -415,9 +478,7 @@ func (l *Lexer) move() token.Token {
 		}
 	case '/':
 		if l.peekChar() == '*' {
-			l.readChar()
-			// Not support `/*`
-			tok = token.NewIllegalToken("not support SQL comment `/*`")
+			tok = l.readMultilineComment()
 		} else {
 			tok = newToken(token.SLASH, l.char)
 		}

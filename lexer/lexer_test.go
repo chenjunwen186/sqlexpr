@@ -87,14 +87,16 @@ func TestNullLiteral(t *testing.T) {
 	expected.testAll(t, "TestNullLiteral", l)
 }
 
-func TestNumberPeriodLiteral(t *testing.T) {
+func TestNumberLiteral(t *testing.T) {
 	input := `. 123
 	. 123.456
 	0.456 . 2e2
 	0.2e+3 1.23e-2 12.
 	0 . .
 	0e+3 . 0e-3
-	0e
+	0e 0.e+
+	0e+3+3 12.e-3+3
+	0X123g 0b01010 0b01230 01234567 018 0xae12c34af
 	`
 	expected := ExpectedList{
 		{token.PERIOD, "."},
@@ -114,6 +116,19 @@ func TestNumberPeriodLiteral(t *testing.T) {
 		{token.PERIOD, "."},
 		{token.NUMBER, "0e-3"},
 		{token.ILLEGAL, "invalid number literal: \"0e\""},
+		{token.ILLEGAL, "invalid number literal: \"0.e+\""},
+		{token.NUMBER, "0e+3"},
+		{token.PLUS, "+"},
+		{token.NUMBER, "3"},
+		{token.NUMBER, "12.e-3"},
+		{token.PLUS, "+"},
+		{token.NUMBER, "3"},
+		{token.ILLEGAL, `invalid hexadecimal number literal: "0X123g"`},
+		{token.NUMBER, "0b01010"},
+		{token.ILLEGAL, `invalid binary number literal: "0b01230"`},
+		{token.NUMBER, "01234567"},
+		{token.ILLEGAL, `invalid octal number literal: "018"`},
+		{token.NUMBER, "0xae12c34af"},
 		{token.EOF, ""},
 	}
 
@@ -123,13 +138,18 @@ func TestNumberPeriodLiteral(t *testing.T) {
 }
 
 func TestIdentifiers(t *testing.T) {
-	input := `hello _world world2_ _world_ _world_0`
+	input := `hello _world world2_ _world_ _world_0
+        HELLO_WORLD HelloWorld helloWorld
+    `
 	expected := ExpectedList{
 		{token.IDENT, "hello"},
 		{token.IDENT, "_world"},
 		{token.IDENT, "world2_"},
 		{token.IDENT, "_world_"},
 		{token.IDENT, "_world_0"},
+		{token.IDENT, "HELLO_WORLD"},
+		{token.IDENT, "HelloWorld"},
+		{token.IDENT, "helloWorld"},
 		{token.EOF, ""},
 	}
 
@@ -179,11 +199,14 @@ func TestOperators(t *testing.T) {
 	IS IS NOT
 	BETWEEN NOT
 	BETWEEN
-	NOT LIKE LIKE
-	>= <= <=> <> < >
+	NOT LIKE LIKE -- hello : world ~
+	/*
+    hello
+    world
+    */
+	>= <= <=> <> < > -> ->> --
 	CASE WHEN x > 1 Then 1 ELSE 0 END
-	0b01010 0b01230 01234567 018
-	0x1234af 0X123g
+    /* hello
 `
 	expected := ExpectedList{
 		{token.PLUS, "+"},
@@ -203,12 +226,17 @@ func TestOperators(t *testing.T) {
 		{token.NOT_BETWEEN, "NOT BETWEEN"},
 		{token.NOT_LIKE, "NOT LIKE"},
 		{token.LIKE, "LIKE"},
+		{token.ILLEGAL, `not support SQL comment: "-- hello : world ~"`},
+		{token.ILLEGAL, "not support SQL comment: \"/*\n    hello\n    world\n    */\""},
 		{token.GT_EQ, ">="},
 		{token.LT_EQ, "<="},
 		{token.LT_EQ_GT, "<=>"},
 		{token.NOT_EQ2, "<>"},
 		{token.LT, "<"},
 		{token.GT, ">"},
+		{token.PRT, "->"},
+		{token.PRT2, "->>"},
+		{token.ILLEGAL, `not support SQL comment: "--"`},
 		{token.CASE, "CASE"},
 		{token.WHEN, "WHEN"},
 		{token.IDENT, "x"},
@@ -219,12 +247,7 @@ func TestOperators(t *testing.T) {
 		{token.ELSE, "ELSE"},
 		{token.NUMBER, "0"},
 		{token.END, "END"},
-		{token.NUMBER, "0b01010"},
-		{token.ILLEGAL, `invalid binary number literal: "0b01230"`},
-		{token.NUMBER, "01234567"},
-		{token.ILLEGAL, `invalid octal number literal: "018"`},
-		{token.NUMBER, "0x1234af"},
-		{token.ILLEGAL, `invalid hexadecimal number literal: "0X123g"`},
+		{token.ILLEGAL, "unexpected EOF: \"/* hello\n\""},
 		{token.EOF, ""},
 	}
 
@@ -237,10 +260,16 @@ func TestPairs(t *testing.T) {
 	input := `
 	(
 	)
+
+	[ ) ] (
 	`
 	expected := ExpectedList{
 		{token.LPAREN, "("},
 		{token.RPAREN, ")"},
+		{token.LBRACKET, "["},
+		{token.RPAREN, ")"},
+		{token.RBRACKET, "]"},
+		{token.LPAREN, "("},
 		{token.EOF, ""},
 	}
 

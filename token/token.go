@@ -15,7 +15,7 @@ const (
 	IDENT = "IDENT"
 
 	BACK_QUOTE_IDENT   = "BACK_QUOTE_IDENT"   // `ident` for MySQL, Sqlite, Clickhouse, ORACLE, SparkSQL
-	DOUBLE_QUOTE_IDENT = "DOUBLE_QUOTE_IDENT" // "ident" for PgSQL
+	DOUBLE_QUOTE_IDENT = "DOUBLE_QUOTE_IDENT" // "ident" for PgSQL, Clickhouse
 
 	// Currently not support
 	// Because it conflicts with Clickhouse's Array Literal
@@ -74,6 +74,10 @@ const (
 
 	FROM = "FROM"
 
+	ASC    = "ASC"
+	DESC   = "DESC"
+	ROWNUM = "ROWNUM" // for Oracle
+
 	TRUE  = "TRUE"
 	FALSE = "FALSE"
 	NULL  = "NULL"
@@ -83,18 +87,22 @@ const (
 	IS      = "IS"
 	BETWEEN = "BETWEEN"
 
+	ANY    = "ANY"
+	EXISTS = "EXISTS"
+
 	DISTINCT = "DISTINCT"
 	AS       = "AS"
+	TOP      = "TOP" // for Oracle
 
 	INTERVAL = "INTERVAL"
-	DAY      = "DAY"
-	HOUR     = "HOUR"
-	MONTH    = "MONTH"
-	MINUTE   = "MINUTE"
-	WEEK     = "WEEK"
-	YEAR     = "YEAR"
-	QUARTER  = "QUARTER"
 	SECOND   = "SECOND"
+	MINUTE   = "MINUTE"
+	HOUR     = "HOUR"
+	DAY      = "DAY"
+	WEEK     = "WEEK"
+	MONTH    = "MONTH"
+	QUARTER  = "QUARTER"
+	YEAR     = "YEAR"
 )
 
 type Token struct {
@@ -133,6 +141,10 @@ var keywords = map[string]Type{
 	"ELSE": ELSE,
 	"FROM": FROM,
 
+	"ASC":    ASC,
+	"DESC":   DESC,
+	"ROWNUM": ROWNUM,
+
 	"TRUE":  TRUE,
 	"FALSE": FALSE,
 	"NULL":  NULL,
@@ -149,6 +161,9 @@ var keywords = map[string]Type{
 
 	"DISTINCT": DISTINCT,
 	"AS":       AS,
+	"TOP":      TOP,
+	"ANY":      ANY,
+	"EXISTS":   EXISTS,
 
 	// time
 	"INTERVAL": INTERVAL,
@@ -195,6 +210,32 @@ func init() {
 		"ASC",
 		"DESC",
 		"UNION",
+		"CREATE",
+		"DROP",
+		"TABLE",
+		"INDEX",
+		"VALUES",
+		"UPDATE",
+		"VIEW",
+		"PRIMARY",
+		"KEY",
+		"EXEC",
+		"ADD",
+		"CONSTRAINT",
+		"ALTER",
+		"COLUMN",
+		"BACKUP",
+		"DATABASE",
+		"CHECK",
+		"REPLACE",
+		"DELETE",
+		"INSERT",
+		"INTO",
+		"PROCEDURE",
+		"UNIQUE",
+		"DEFAULT",
+		"FOREIGN",
+		"TRUNCATE",
 	)
 }
 

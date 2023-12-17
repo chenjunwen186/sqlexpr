@@ -220,7 +220,7 @@ func (l *Lexer) readHexadecimalNumber() token.Token {
 func (l *Lexer) readString() token.Token {
 	var b bytes.Buffer
 
-	var hasComment bool
+	// var hasComment bool
 	for {
 		l.readChar()
 
@@ -232,24 +232,25 @@ func (l *Lexer) readString() token.Token {
 			break
 		}
 
-		if l.char == '-' && l.peekChar() == '-' {
-			hasComment = true
-		}
+		// No need to check comment in string literal
+		// if l.char == '-' && l.peekChar() == '-' {
+		// 	hasComment = true
+		// }
 
 		b.WriteRune(l.char)
 	}
 
-	if hasComment {
-		return token.NewIllegalToken(fmt.Sprintf("not support SQL comment `--` in string literal: '%s'", b.String()))
-	}
+	// if hasComment {
+	// 	return token.NewIllegalToken(fmt.Sprintf("not support SQL comment `--` in string literal: '%s'", b.String()))
+	// }
 
-	return token.Token{Type: token.STRING, Literal: b.String()}
+	return token.Token{Type: token.STRING, Literal: fmt.Sprintf("'%s'", b.String())}
 }
 
 func (l *Lexer) readBackQuoteIdentifier() token.Token {
 	var b bytes.Buffer
 
-	var hasComment bool
+	// var hasComment bool
 	for {
 		l.readChar()
 
@@ -261,16 +262,17 @@ func (l *Lexer) readBackQuoteIdentifier() token.Token {
 			break
 		}
 
-		if l.char == '-' && l.peekChar() == '-' {
-			hasComment = true
-		}
+		// No need to check comment in back quote identifier
+		// if l.char == '-' && l.peekChar() == '-' {
+		// 	hasComment = true
+		// }
 
 		b.WriteRune(l.char)
 	}
 
-	if hasComment {
-		return token.NewIllegalToken(fmt.Sprintf("not support SQL comment `--` in back quote identifier: `%s`", b.String()))
-	}
+	// if hasComment {
+	// 	return token.NewIllegalToken(fmt.Sprintf("not support SQL comment `--` in back quote identifier: `%s`", b.String()))
+	// }
 
 	return token.Token{Type: token.BACK_QUOTE_IDENT, Literal: "`" + b.String() + "`"}
 }
@@ -278,7 +280,7 @@ func (l *Lexer) readBackQuoteIdentifier() token.Token {
 func (l *Lexer) readDoubleQuoteIdentifier() token.Token {
 	var b bytes.Buffer
 
-	var hasComment bool
+	// var hasComment bool
 	for {
 		l.readChar()
 
@@ -290,16 +292,17 @@ func (l *Lexer) readDoubleQuoteIdentifier() token.Token {
 			break
 		}
 
-		if l.char == '-' && l.peekChar() == '-' {
-			hasComment = true
-		}
+		// No need to check comment in double quote identifier
+		// if l.char == '-' && l.peekChar() == '-' {
+		// 	hasComment = true
+		// }
 
 		b.WriteRune(l.char)
 	}
 
-	if hasComment {
-		return token.NewIllegalToken(fmt.Sprintf("not support SQL comment `--` in double quote identifier: \"%s\"", b.String()))
-	}
+	// if hasComment {
+	// 	return token.NewIllegalToken(fmt.Sprintf("not support SQL comment `--` in double quote identifier: \"%s\"", b.String()))
+	// }
 
 	return token.Token{Type: token.DOUBLE_QUOTE_IDENT, Literal: `"` + b.String() + `"`}
 }
@@ -318,9 +321,7 @@ func (l *Lexer) readIdentifier() string {
 func (l *Lexer) readSingleLineComment() token.Token {
 	var b bytes.Buffer
 
-	// Read `--`
-	b.WriteRune(l.char)
-	l.readChar()
+	// Write `-` or `#`
 	b.WriteRune(l.char)
 
 	for {
@@ -436,9 +437,15 @@ func (l *Lexer) move() token.Token {
 	case '!':
 		if l.peekChar() == '=' {
 			l.readChar()
-			tok = token.Token{Type: token.NOT_EQ1, Literal: "!="}
+			tok = token.Token{Type: token.BANG_EQ, Literal: "!="}
+		} else if l.peekChar() == '>' {
+			l.readChar()
+			tok = token.Token{Type: token.BANG_GT, Literal: "!>"}
+		} else if l.peekChar() == '<' {
+			l.readChar()
+			tok = token.Token{Type: token.BANG_LT, Literal: "!<"}
 		} else {
-			tok = token.NewIllegalToken("not support `!`")
+			tok = newToken(token.BANG, l.char)
 		}
 
 	case '(':
@@ -454,6 +461,9 @@ func (l *Lexer) move() token.Token {
 		tok = newToken(token.COMMA, l.char)
 	case '+':
 		tok = newToken(token.PLUS, l.char)
+
+	case '#':
+		tok = l.readSingleLineComment()
 	case '-':
 		if l.peekChar() == '-' {
 			tok = l.readSingleLineComment()
@@ -488,6 +498,8 @@ func (l *Lexer) move() token.Token {
 		tok = newToken(token.TILDE, l.char)
 	case '&':
 		tok = newToken(token.AMP, l.char)
+	case '^':
+		tok = newToken(token.XOR, l.char)
 
 	case '<':
 		if l.peekChar() == '=' {
@@ -500,7 +512,7 @@ func (l *Lexer) move() token.Token {
 			}
 		} else if l.peekChar() == '>' {
 			l.readChar()
-			tok = token.Token{Type: token.NOT_EQ2, Literal: "<>"}
+			tok = token.Token{Type: token.NOT_EQ, Literal: "<>"}
 		} else if l.peekChar() == '<' {
 			l.readChar()
 			tok = token.Token{Type: token.LT2, Literal: "<<"}
@@ -529,6 +541,17 @@ func (l *Lexer) move() token.Token {
 		tok = l.readBackQuoteIdentifier()
 	case '"':
 		tok = l.readDoubleQuoteIdentifier()
+
+	case '?':
+		tok = newToken(token.QUESTION, l.char)
+
+	case ':':
+		if l.peekChar() == ':' {
+			l.readChar()
+			tok = token.Token{Type: token.COLON2, Literal: "::"}
+		} else {
+			tok = newToken(token.COLON, l.char)
+		}
 
 	case EOF:
 		tok.Literal = ""

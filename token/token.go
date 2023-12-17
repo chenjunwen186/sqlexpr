@@ -24,8 +24,6 @@ const (
 	STRING = "STRING"
 	NUMBER = "NUMBER"
 
-	NOT = "NOT"
-
 	NOT_IN      = "NOT IN"
 	NOT_LIKE    = "NOT LIKE"
 	NOT_BETWEEN = "NOT BETWEEN"
@@ -33,6 +31,7 @@ const (
 
 	PIPE = "|"
 	AMP  = "&"
+	XOR  = "^"
 
 	PLUS     = "+"
 	MINUS    = "-"
@@ -45,6 +44,11 @@ const (
 	TILDE    = "~"
 	PERIOD   = "."
 
+	QUESTION = "?"
+	COLON    = ":"
+
+	COLON2 = "::" // type case: select 1::int
+
 	COMMA = ","
 
 	LPAREN   = "("
@@ -52,9 +56,15 @@ const (
 	LBRACKET = "["
 	RBRACKET = "]"
 
+	NOT = "NOT"
+
+	BANG    = "!"
+	BANG_GT = "!>"
+	BANG_LT = "!<"
+
 	EQ       = "="
-	NOT_EQ1  = "!="
-	NOT_EQ2  = "<>"
+	BANG_EQ  = "!="
+	NOT_EQ   = "<>"
 	LT       = "<"
 	LT_EQ    = "<="
 	GT       = ">"
@@ -143,7 +153,7 @@ var keywords = map[string]Type{
 
 	"ASC":    ASC,
 	"DESC":   DESC,
-	"ROWNUM": ROWNUM,
+	"ROWNUM": ROWNUM, // For Oracle
 
 	"TRUE":  TRUE,
 	"FALSE": FALSE,
@@ -236,6 +246,8 @@ func init() {
 		"DEFAULT",
 		"FOREIGN",
 		"TRUNCATE",
+		"WITH",
+		"SET",
 	)
 }
 

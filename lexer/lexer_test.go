@@ -1,6 +1,7 @@
 package lexer
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/chenjunwen186/sqlexpr/token"
@@ -39,9 +40,9 @@ func TestStringLiteral(t *testing.T) {
 	}
 
 	inputs := []TestCase{
-		{`'hello world'`, newToken(token.STRING, "hello world")},
+		{`'hello world'`, newToken(token.STRING, "'hello world'")},
 		{"'hello world", newToken(token.ILLEGAL, `unexpected EOF: 'hello world`)},
-		{`'hello -- world'`, newToken(token.ILLEGAL, "not support SQL comment `--` in string literal: 'hello -- world'")},
+		{`'hello -- world'`, newToken(token.STRING, "'hello -- world'")},
 	}
 
 	for _, input := range inputs {
@@ -164,14 +165,14 @@ func TestBackQuoteIdentifiers(t *testing.T) {
 		{token.BACK_QUOTE_IDENT, "`Hello:@`"},
 		{token.BACK_QUOTE_IDENT, "`hello world`"},
 		{token.BACK_QUOTE_IDENT, "`hello `"},
-		{token.ILLEGAL, "not support SQL comment `--` in back quote identifier: `hello -- world`"},
+		{token.BACK_QUOTE_IDENT, "`hello -- world`"},
 		{token.ILLEGAL, "unexpected EOF: `hello "},
 		{token.EOF, ""},
 	}
 
 	l := New(input)
 
-	expected.testAll(t, "TestBackQuoteIdentifiers", l)
+	expected.testAll(t, "TestDoubleQuoteIdentifiers", l)
 }
 
 func TestDoubleQuoteIdentifiers(t *testing.T) {
@@ -180,21 +181,21 @@ func TestDoubleQuoteIdentifiers(t *testing.T) {
 		{token.DOUBLE_QUOTE_IDENT, `"Hello:@"`},
 		{token.DOUBLE_QUOTE_IDENT, `"hello world"`},
 		{token.DOUBLE_QUOTE_IDENT, `"hello "`},
-		{token.ILLEGAL, "not support SQL comment `--` in double quote identifier: \"hello -- world\""},
+		{token.DOUBLE_QUOTE_IDENT, "\"hello -- world\""},
 		{token.ILLEGAL, `unexpected EOF: "hello `},
 		{token.EOF, ""},
 	}
 
 	l := New(input)
 
-	expected.testAll(t, "TestBackQuoteIdentifiers", l)
+	expected.testAll(t, "TestDoubleQuoteIdentifiers", l)
 }
 
 func TestOperators(t *testing.T) {
 	input := `
 	+
 	- * / %
-	& |
+	& | ^
 	|| << >> ~
 	IS IS NOT
 	BETWEEN NOT
@@ -204,8 +205,11 @@ func TestOperators(t *testing.T) {
     hello
     world
     */
+	# CASE
+	! != !< !>
 	>= <= <=> <> < > -> ->> --
-	CASE WHEN x > 1 Then 1 ELSE 0 END
+	CASE WHEN x > 1 Then 1 ELSE 0 END # hello@world
+	? : ,: 1::int
     /* hello
 `
 	expected := ExpectedList{
@@ -216,6 +220,7 @@ func TestOperators(t *testing.T) {
 		{token.MOD, "%"},
 		{token.AMP, "&"},
 		{token.PIPE, "|"},
+		{token.XOR, "^"},
 		{token.PIPE2, "||"},
 		{token.LT2, "<<"},
 		{token.RT2, ">>"},
@@ -228,10 +233,15 @@ func TestOperators(t *testing.T) {
 		{token.LIKE, "LIKE"},
 		{token.ILLEGAL, `not support SQL comment: "-- hello : world ~"`},
 		{token.ILLEGAL, "not support SQL comment: \"/*\n    hello\n    world\n    */\""},
+		{token.ILLEGAL, `not support SQL comment: "# CASE"`},
+		{token.BANG, "!"},
+		{token.BANG_EQ, "!="},
+		{token.BANG_LT, "!<"},
+		{token.BANG_GT, "!>"},
 		{token.GT_EQ, ">="},
 		{token.LT_EQ, "<="},
 		{token.LT_EQ_GT, "<=>"},
-		{token.NOT_EQ2, "<>"},
+		{token.NOT_EQ, "<>"},
 		{token.LT, "<"},
 		{token.GT, ">"},
 		{token.PRT, "->"},
@@ -247,6 +257,14 @@ func TestOperators(t *testing.T) {
 		{token.ELSE, "ELSE"},
 		{token.NUMBER, "0"},
 		{token.END, "END"},
+		{token.ILLEGAL, `not support SQL comment: "# hello@world"`},
+		{token.QUESTION, "?"},
+		{token.COLON, ":"},
+		{token.COMMA, ","},
+		{token.COLON, ":"},
+		{token.NUMBER, "1"},
+		{token.COLON2, "::"},
+		{token.IDENT, "int"},
 		{token.ILLEGAL, "unexpected EOF: \"/* hello\n\""},
 		{token.EOF, ""},
 	}
@@ -276,4 +294,74 @@ func TestPairs(t *testing.T) {
 	l := New(input)
 
 	expected.testAll(t, "TestPairs", l)
+}
+
+func TestExpressions(t *testing.T) {
+	type TestCase struct {
+		input   string
+		literal string
+		errMsg  string
+	}
+
+	inputs := []TestCase{
+		{`1 + 2`, `1 + 2`, ""},
+		{`1 + 2 * 3`, `1 + 2 * 3`, ""},
+		{`(1 + 2) * 3`, `( 1 + 2 ) * 3`, ""},
+		{`(1 ,2)`, `( 1 , 2 )`, ""},
+		{
+			`arrayFilter(x -> x > 1, [1, 2, 3])`,
+			`arrayFilter ( x -> x > 1 , [ 1 , 2 , 3 ] )`,
+			"",
+		},
+		{`sumIf(1, 1)`, `sumIf ( 1 , 1 )`, ""},
+		{`CASE WHEN x > 1 Then 1 ELSE 0 END`, `CASE WHEN x > 1 Then 1 ELSE 0 END`, ""},
+		{`[1, 02, 0.3, 4., 0b01010, 0XAbC]`, `[ 1 , 02 , 0.3 , 4. , 0b01010 , 0XAbC ]`, ""},
+		{
+			`'hello world' -- select * from hello; -- '`,
+			"",
+			"not support SQL comment: \"-- select * from hello; -- '\"",
+		},
+	}
+
+	for _, input := range inputs {
+		var (
+			tokens []token.Token
+			errMsg string
+		)
+		l := New(input.input)
+		for {
+			tok := l.NextToken()
+
+			if tok.Type == token.EOF {
+				break
+			}
+
+			if tok.Type == token.ILLEGAL {
+				errMsg = tok.Literal
+				break
+			}
+
+			tokens = append(tokens, tok)
+		}
+
+		if errMsg != "" {
+			if input.errMsg != errMsg {
+				t.Errorf("errMsg wrong. expected=%q, got=%q", input.errMsg, errMsg)
+			}
+		} else {
+			literal := tokensToString(tokens)
+			if literal != input.literal {
+				t.Errorf("literal wrong. expected=%q, got=%q", input.literal, literal)
+			}
+		}
+	}
+}
+
+func tokensToString(tokens []token.Token) string {
+	var literals []string
+	for _, tok := range tokens {
+		literals = append(literals, tok.Literal)
+	}
+
+	return strings.Join(literals, " ")
 }

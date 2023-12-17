@@ -14,7 +14,9 @@ type Lexer struct {
 	input        []rune
 	position     int
 	nextPosition int
-	char         rune
+
+	preChar rune
+	char    rune
 
 	nextToken token.Token
 }
@@ -32,6 +34,7 @@ func (l *Lexer) Len() int {
 }
 
 func (l *Lexer) readChar() {
+	l.preChar = l.char
 	if l.nextPosition >= len(l.input) {
 		l.char = EOF
 	} else {
@@ -228,7 +231,8 @@ func (l *Lexer) readString() token.Token {
 			return token.NewIllegalToken(fmt.Sprintf("unexpected EOF: '%s", b.String()))
 		}
 
-		if l.char == '\'' {
+		// ', \ in previous char will escape current char
+		if l.char == '\'' && l.preChar != '\\' && l.preChar != '\'' {
 			break
 		}
 
@@ -258,7 +262,8 @@ func (l *Lexer) readBackQuoteIdentifier() token.Token {
 			return token.NewIllegalToken(fmt.Sprintf("unexpected EOF: `%s", b.String()))
 		}
 
-		if l.char == '`' {
+		// `, \ in previous char will escape current char
+		if l.char == '`' && l.preChar != '\\' && l.preChar != '`' {
 			break
 		}
 
@@ -288,7 +293,8 @@ func (l *Lexer) readDoubleQuoteIdentifier() token.Token {
 			return token.NewIllegalToken(fmt.Sprintf(`unexpected EOF: "%s`, b.String()))
 		}
 
-		if l.char == '"' {
+		// ", \ in previous char will escape current char
+		if l.char == '"' && l.preChar != '\\' && l.preChar != '"' {
 			break
 		}
 

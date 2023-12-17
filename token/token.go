@@ -265,7 +265,7 @@ func LookupIdent(ident string) Token {
 	if typ, ok := notSupportKeywords[v]; ok {
 		return Token{
 			Type:    typ,
-			Literal: fmt.Sprintf("not support keyword: %s", ident),
+			Literal: fmt.Sprintf("not support keyword: %q", ident),
 		}
 	}
 

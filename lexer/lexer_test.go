@@ -313,13 +313,44 @@ func TestExpressions(t *testing.T) {
 			`arrayFilter ( x -> x > 1 , [ 1 , 2 , 3 ] )`,
 			"",
 		},
+		{"1 ? 2 : 3", "1 ? 2 : 3", ""},
 		{`sumIf(1, 1)`, `sumIf ( 1 , 1 )`, ""},
-		{`CASE WHEN x > 1 Then 1 ELSE 0 END`, `CASE WHEN x > 1 Then 1 ELSE 0 END`, ""},
-		{`[1, 02, 0.3, 4., 0b01010, 0XAbC]`, `[ 1 , 02 , 0.3 , 4. , 0b01010 , 0XAbC ]`, ""},
 		{
-			`'hello world' -- select * from hello; -- '`,
+			`COUNT(*) as c, "world", True as t`,
+			`COUNT ( * ) as c , "world" , True as t`,
 			"",
-			"not support SQL comment: \"-- select * from hello; -- '\"",
+		},
+		{
+			`CASE WHEN x > 1 Then 1 ELSE 0 END`,
+			`CASE WHEN x > 1 Then 1 ELSE 0 END`,
+			"",
+		},
+		{
+			`[1, 02, 0.3, 4., 0b01010, 0XAbC, 1.e+3 , 123e-3, -1, 0]`,
+			`[ 1 , 02 , 0.3 , 4. , 0b01010 , 0XAbC , 1.e+3 , 123e-3 , - 1 , 0 ]`,
+			"",
+		},
+		{`1::int`, `1 :: int`, ""},
+		{`1::int::int`, `1 :: int :: int`, ""},
+		{
+			`CAST(order_amount AS DECIMAL(10, 2))`,
+			`CAST ( order_amount AS DECIMAL ( 10 , 2 ) )`,
+			"",
+		},
+		{
+			`DATE_SUB('2023-01-15', INTERVAL 3 MONTH)`,
+			`DATE_SUB ( '2023-01-15' , INTERVAL 3 MONTH )`,
+			"",
+		},
+		{
+			`EXTRACT(YEAR FROM '2023-05-15 14:30:00')`,
+			`EXTRACT ( YEAR FROM '2023-05-15 14:30:00' )`,
+			"",
+		},
+		{
+			`'hello world' select * from hello; -- '`,
+			"",
+			"not support keyword: \"select\"",
 		},
 	}
 

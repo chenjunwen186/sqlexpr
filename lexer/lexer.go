@@ -145,8 +145,12 @@ func (l *Lexer) readNumber() token.Token {
 // Start with 0[bB]
 func (l *Lexer) readBinaryNumber() token.Token {
 	var b bytes.Buffer
+
+	// Write `0`
 	b.WriteRune(l.char)
 	l.readChar()
+
+	// Write `b` or `B`
 	b.WriteRune(l.char)
 	l.readChar()
 
@@ -171,8 +175,12 @@ func (l *Lexer) readBinaryNumber() token.Token {
 // Start with 0[\d]
 func (l *Lexer) readOctalNumber() token.Token {
 	var b bytes.Buffer
+
+	// Write `0`
 	b.WriteRune(l.char)
 	l.readChar()
+
+	// Write `0` ~ `7`
 	b.WriteRune(l.char)
 	l.readChar()
 
@@ -197,8 +205,11 @@ func (l *Lexer) readOctalNumber() token.Token {
 // Start with 0[xX]
 func (l *Lexer) readHexadecimalNumber() token.Token {
 	var b bytes.Buffer
+
+	// Write `0`
 	b.WriteRune(l.char)
 	l.readChar()
+	// Write `x` or `X`
 	b.WriteRune(l.char)
 	l.readChar()
 
@@ -223,7 +234,9 @@ func (l *Lexer) readHexadecimalNumber() token.Token {
 func (l *Lexer) readString() token.Token {
 	var b bytes.Buffer
 
-	// var hasComment bool
+	// Write `'`
+	b.WriteRune(l.char)
+
 	var (
 		isPreValidEscape bool
 		isPreValidQuote  bool
@@ -232,15 +245,19 @@ func (l *Lexer) readString() token.Token {
 		l.readChar()
 
 		if l.char == EOF {
-			return token.NewIllegalToken(fmt.Sprintf("unexpected EOF: '%s", b.String()))
+			return token.NewIllegalToken(fmt.Sprintf("unexpected EOF: %s", b.String()))
 		}
 
 		if l.char == '\'' && !isPreValidEscape && !isPreValidQuote {
 			if l.peekChar() != '\'' {
+				// Write end `'`
+				b.WriteRune(l.char)
 				break
 			} else {
 				isPreValidQuote = true
 			}
+		} else {
+			isPreValidQuote = false
 		}
 
 		if l.char == '\\' && !isPreValidEscape {
@@ -249,25 +266,18 @@ func (l *Lexer) readString() token.Token {
 			isPreValidEscape = false
 		}
 
-		// No need to check comment in string literal
-		// if l.char == '-' && l.peekChar() == '-' {
-		// 	hasComment = true
-		// }
-
 		b.WriteRune(l.char)
 	}
 
-	// if hasComment {
-	// 	return token.NewIllegalToken(fmt.Sprintf("not support SQL comment `--` in string literal: '%s'", b.String()))
-	// }
-
-	return token.Token{Type: token.STRING, Literal: fmt.Sprintf("'%s'", b.String())}
+	return token.Token{Type: token.STRING, Literal: b.String()}
 }
 
 func (l *Lexer) readBackQuoteIdentifier() token.Token {
 	var b bytes.Buffer
 
-	// var hasComment bool
+	// Write '`'
+	b.WriteRune(l.char)
+
 	var (
 		isPreValidEscape    bool
 		isPreValidBackQuote bool
@@ -276,15 +286,19 @@ func (l *Lexer) readBackQuoteIdentifier() token.Token {
 		l.readChar()
 
 		if l.char == EOF {
-			return token.NewIllegalToken(fmt.Sprintf("unexpected EOF: `%s", b.String()))
+			return token.NewIllegalToken(fmt.Sprintf("unexpected EOF: %s", b.String()))
 		}
 
 		if l.char == '`' && !isPreValidEscape && !isPreValidBackQuote {
 			if l.peekChar() != '`' {
+				// Write end '`'
+				b.WriteRune(l.char)
 				break
 			} else {
 				isPreValidBackQuote = true
 			}
+		} else {
+			isPreValidBackQuote = false
 		}
 
 		if l.char == '\\' && !isPreValidEscape {
@@ -293,17 +307,8 @@ func (l *Lexer) readBackQuoteIdentifier() token.Token {
 			isPreValidEscape = false
 		}
 
-		// No need to check comment in back quote identifier
-		// if l.char == '-' && l.peekChar() == '-' {
-		// 	hasComment = true
-		// }
-
 		b.WriteRune(l.char)
 	}
-
-	// if hasComment {
-	// 	return token.NewIllegalToken(fmt.Sprintf("not support SQL comment `--` in back quote identifier: `%s`", b.String()))
-	// }
 
 	return token.Token{Type: token.BACK_QUOTE_IDENT, Literal: "`" + b.String() + "`"}
 }
@@ -311,7 +316,9 @@ func (l *Lexer) readBackQuoteIdentifier() token.Token {
 func (l *Lexer) readDoubleQuoteIdentifier() token.Token {
 	var b bytes.Buffer
 
-	// var hasComment bool
+	// Write `"`
+	b.WriteRune(l.char)
+
 	var (
 		isPreValidEscape      bool
 		isPreValidDoubleQuote bool
@@ -325,10 +332,14 @@ func (l *Lexer) readDoubleQuoteIdentifier() token.Token {
 
 		if l.char == '"' && !isPreValidEscape && !isPreValidDoubleQuote {
 			if l.peekChar() != '"' {
+				// Write end `"`
+				b.WriteRune(l.char)
 				break
 			} else {
 				isPreValidDoubleQuote = true
 			}
+		} else {
+			isPreValidDoubleQuote = false
 		}
 
 		if l.char == '\\' && !isPreValidEscape {
@@ -337,17 +348,8 @@ func (l *Lexer) readDoubleQuoteIdentifier() token.Token {
 			isPreValidEscape = false
 		}
 
-		// No need to check comment in double quote identifier
-		// if l.char == '-' && l.peekChar() == '-' {
-		// 	hasComment = true
-		// }
-
 		b.WriteRune(l.char)
 	}
-
-	// if hasComment {
-	// 	return token.NewIllegalToken(fmt.Sprintf("not support SQL comment `--` in double quote identifier: \"%s\"", b.String()))
-	// }
 
 	return token.Token{Type: token.DOUBLE_QUOTE_IDENT, Literal: `"` + b.String() + `"`}
 }
@@ -388,6 +390,7 @@ func (l *Lexer) readSingleLineComment() token.Token {
 		b.WriteRune(l.char)
 	}
 
+	// Do not support `--` or `#` token to reduce SQL injection risk.
 	return token.NewIllegalToken(fmt.Sprintf(`not support SQL comment: "%s"`, b.String()))
 }
 
@@ -416,6 +419,7 @@ func (l *Lexer) readMultilineComment() token.Token {
 		b.WriteRune(l.char)
 	}
 
+	// Do not support `/* */` token to reduce SQL injection risk.
 	return token.NewIllegalToken(fmt.Sprintf(`not support SQL comment: "%s"`, b.String()))
 }
 
@@ -509,6 +513,10 @@ func (l *Lexer) move() token.Token {
 
 	case '#':
 		tok = l.readSingleLineComment()
+
+	// Do not support token `;` to reduce SQL injection risk.
+	case ';':
+		tok = token.NewIllegalToken("not support token `;`")
 	case '-':
 		if l.peekChar() == '-' {
 			tok = l.readSingleLineComment()

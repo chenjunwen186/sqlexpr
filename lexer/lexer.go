@@ -91,7 +91,7 @@ func (l *Lexer) readNumber() token.Token {
 		return char == 'e' || char == 'E'
 	}
 
-	for unicode.IsLetter(l.char) || unicode.IsDigit(l.char) || l.char == '.' || l.char == '+' || l.char == '-' {
+	for isLetter(l.char) || unicode.IsDigit(l.char) || l.char == '.' || l.char == '+' || l.char == '-' {
 		if l.char == '+' || l.char == '-' {
 			if hasSign {
 				// 12.e+3+3 => ((12.e+3)+3)
@@ -127,7 +127,7 @@ func (l *Lexer) readNumber() token.Token {
 			if !unicode.IsDigit(l.char) {
 				isInvalid = true
 			}
-		} else if unicode.IsLetter(l.char) {
+		} else if isLetter(l.char) {
 			isInvalid = true
 		}
 
@@ -206,15 +206,13 @@ func (l *Lexer) readOctalNumber() token.Token {
 func (l *Lexer) readHexadecimalNumber() token.Token {
 	var b bytes.Buffer
 
-	// Write `0`
-	b.WriteRune(l.char)
+	b.WriteRune(l.char) // Write `0`
 	l.readChar()
-	// Write `x` or `X`
-	b.WriteRune(l.char)
+	b.WriteRune(l.char) // Write `x` or `X`
 	l.readChar()
 
 	var isIllegal bool
-	for unicode.IsDigit(l.char) || unicode.IsLetter(l.char) {
+	for unicode.IsDigit(l.char) || isLetter(l.char) {
 		if (l.char >= '0' && l.char <= '9') || (l.char >= 'a' && l.char <= 'f') || (l.char >= 'A' && l.char <= 'F') {
 			b.WriteRune(l.char)
 		} else {
@@ -234,8 +232,7 @@ func (l *Lexer) readHexadecimalNumber() token.Token {
 func (l *Lexer) readString() token.Token {
 	var b bytes.Buffer
 
-	// Write `'`
-	b.WriteRune(l.char)
+	b.WriteRune(l.char) // Write `'`
 
 	var (
 		isPreValidEscape bool
@@ -374,10 +371,12 @@ func (l *Lexer) readSingleLineComment() token.Token {
 	for {
 		l.readChar()
 
+		// EOF is allowed after a single line comment
 		if l.char == EOF {
 			break
 		}
 
+		// Compatible with Windows `\r\n`
 		if l.char == '\r' && l.peekChar() == '\n' {
 			l.readChar()
 			break
@@ -397,22 +396,24 @@ func (l *Lexer) readSingleLineComment() token.Token {
 func (l *Lexer) readMultilineComment() token.Token {
 	var b bytes.Buffer
 
-	// Read `/*`
-	b.WriteRune(l.char)
+	b.WriteRune(l.char) // Write `/`
 	l.readChar()
-	b.WriteRune(l.char)
+	b.WriteRune(l.char) // Write `*`
 
 	for {
 		l.readChar()
 
 		if l.char == EOF {
+			// Because multiple lines of comment must end with */
+			// if EOF is encountered here, it means that the comment is not closed
+			// IllegalToken is returned here
 			return token.NewIllegalToken(fmt.Sprintf(`unexpected EOF: "%s"`, b.String()))
 		}
 
-		if l.char == '*' && l.peekChar() == '/' {
-			b.WriteRune(l.char)
+		if l.char == '*' && l.peekChar() == '/' { // Read `*/`
+			b.WriteRune(l.char) // Write `*`
 			l.readChar()
-			b.WriteRune(l.char)
+			b.WriteRune(l.char) // Write `/`
 			break
 		}
 
@@ -423,20 +424,29 @@ func (l *Lexer) readMultilineComment() token.Token {
 	return token.NewIllegalToken(fmt.Sprintf(`not support SQL comment: "%s"`, b.String()))
 }
 
+// Only [a-zA-Z0-9_] can be an identifier
 func isIdentifier(char rune) bool {
-	if unicode.IsLetter(char) || unicode.IsDigit(char) || char == '_' {
+	if isLetter(char) || unicode.IsDigit(char) || char == '_' {
 		return true
 	}
 
 	return false
 }
 
+// This function is used to determine
+// whether the current character is the beginning of an identifier or a keyword.
+// only [a-zA-Z_] can be the beginning of an identifier or a keyword
 func (l *Lexer) isIdentifierStart() bool {
-	if unicode.IsLetter(l.char) || l.char == '_' {
+	// Start with [a-zA-Z_]
+	if isLetter(l.char) || l.char == '_' {
 		return true
 	}
 
 	return false
+}
+
+func isLetter(char rune) bool {
+	return char > 'a' && char < 'z' || char > 'A' && char < 'Z'
 }
 
 func newToken(tokenType token.Type, ch rune) token.Token {
@@ -446,19 +456,22 @@ func newToken(tokenType token.Type, ch rune) token.Token {
 func (l *Lexer) NextToken() token.Token {
 	tok := l.nextToken
 	l.nextToken = l.move()
-	if tok.Type == token.IS && l.nextToken.Type == token.NOT {
+
+	// Read token `NOT IN`, `NOT BETWEEN`, `NOT LIKE`, `IS NOT`
+	// All these tokens are treated as one token
+	if tok.Type == token.IS && l.nextToken.Type == token.NOT { // Read token `IS NOT`
 		tok = token.Token{Type: token.IS_NOT, Literal: "IS NOT"}
 		l.nextToken = l.move()
 		return tok
-	} else if tok.Type == token.NOT && l.nextToken.Type == token.IN {
+	} else if tok.Type == token.NOT && l.nextToken.Type == token.IN { // Read token `NOT IN`
 		tok = token.Token{Type: token.NOT_IN, Literal: "NOT IN"}
 		l.nextToken = l.move()
 		return tok
-	} else if tok.Type == token.NOT && l.nextToken.Type == token.BETWEEN {
+	} else if tok.Type == token.NOT && l.nextToken.Type == token.BETWEEN { // Read token `NOT BETWEEN`
 		tok = token.Token{Type: token.NOT_BETWEEN, Literal: "NOT BETWEEN"}
 		l.nextToken = l.move()
 		return tok
-	} else if tok.Type == token.NOT && l.nextToken.Type == token.LIKE {
+	} else if tok.Type == token.NOT && l.nextToken.Type == token.LIKE { // Read token `NOT LIKE`
 		tok = token.Token{Type: token.NOT_LIKE, Literal: "NOT LIKE"}
 		l.nextToken = l.move()
 		return tok
@@ -473,10 +486,10 @@ func (l *Lexer) move() token.Token {
 
 	switch l.char {
 	case '|':
-		if l.peekChar() == '|' {
+		if l.peekChar() == '|' { // Read token `||`
 			l.readChar()
 			tok = token.Token{Type: token.PIPE2, Literal: "||"}
-		} else {
+		} else { // Read token `|`
 			tok = newToken(token.PIPE, l.char)
 		}
 
@@ -484,16 +497,16 @@ func (l *Lexer) move() token.Token {
 		tok = newToken(token.EQ, l.char)
 
 	case '!':
-		if l.peekChar() == '=' {
+		if l.peekChar() == '=' { // Read token `!=`
 			l.readChar()
 			tok = token.Token{Type: token.BANG_EQ, Literal: "!="}
-		} else if l.peekChar() == '>' {
+		} else if l.peekChar() == '>' { // Read token `!>`
 			l.readChar()
 			tok = token.Token{Type: token.BANG_GT, Literal: "!>"}
-		} else if l.peekChar() == '<' {
+		} else if l.peekChar() == '<' { // Read token `!<`
 			l.readChar()
 			tok = token.Token{Type: token.BANG_LT, Literal: "!<"}
-		} else {
+		} else { // Read token `!`
 			tok = newToken(token.BANG, l.char)
 		}
 
@@ -514,35 +527,35 @@ func (l *Lexer) move() token.Token {
 	case '#':
 		tok = l.readSingleLineComment()
 
-	// Do not support token `;` to reduce SQL injection risk.
 	case ';':
+		// Do not support token `;` to reduce SQL injection risk.
 		tok = token.NewIllegalToken("not support token `;`")
 	case '-':
-		if l.peekChar() == '-' {
+		if l.peekChar() == '-' { // Read token `--`
 			tok = l.readSingleLineComment()
-		} else if l.peekChar() == '>' {
+		} else if l.peekChar() == '>' { // Read token `->` or `->>`
 			l.readChar()
-			if l.peekChar() == '>' {
+			if l.peekChar() == '>' { // Read token `->>`
 				l.readChar()
 				tok = token.Token{Type: token.PRT2, Literal: "->>"}
-			} else {
+			} else { // Read token `->`
 				tok = token.Token{Type: token.PRT, Literal: "->"}
 			}
-		} else {
+		} else { // Read token `-`
 			tok = newToken(token.MINUS, l.char)
 		}
 	case '*':
-		if l.peekChar() == '/' {
+		if l.peekChar() == '/' { // Read token `*/`
 			l.readChar()
-			// Not support `*/`
+			// Not support `*/` to reduce SQL injection risk
 			tok = token.NewIllegalToken("not support SQL comment `*/`")
-		} else {
+		} else { // Read token `*`
 			tok = newToken(token.ASTERISK, l.char)
 		}
 	case '/':
-		if l.peekChar() == '*' {
+		if l.peekChar() == '*' { // Read token `/*`
 			tok = l.readMultilineComment()
-		} else {
+		} else { //
 			tok = newToken(token.SLASH, l.char)
 		}
 	case '%':
@@ -555,32 +568,32 @@ func (l *Lexer) move() token.Token {
 		tok = newToken(token.XOR, l.char)
 
 	case '<':
-		if l.peekChar() == '=' {
+		if l.peekChar() == '=' { // Read token `<=`
 			l.readChar()
-			if l.peekChar() == '>' {
+			if l.peekChar() == '>' { // Read token `<=>`
 				l.readChar()
 				tok = token.Token{Type: token.LT_EQ_GT, Literal: "<=>"}
-			} else {
+			} else { // Read token `<=`
 				tok = token.Token{Type: token.LT_EQ, Literal: "<="}
 			}
-		} else if l.peekChar() == '>' {
+		} else if l.peekChar() == '>' { // Read token `<>`
 			l.readChar()
 			tok = token.Token{Type: token.NOT_EQ, Literal: "<>"}
-		} else if l.peekChar() == '<' {
+		} else if l.peekChar() == '<' { // Read token `<<`
 			l.readChar()
 			tok = token.Token{Type: token.LT2, Literal: "<<"}
-		} else {
+		} else { // Read token `<`
 			tok = newToken(token.LT, l.char)
 		}
 
 	case '>':
-		if l.peekChar() == '=' {
+		if l.peekChar() == '=' { // Read token `>=`
 			l.readChar()
 			tok = token.Token{Type: token.GT_EQ, Literal: ">="}
-		} else if l.peekChar() == '>' {
+		} else if l.peekChar() == '>' { // Read token `>>`
 			l.readChar()
 			tok = token.Token{Type: token.RT2, Literal: ">>"}
-		} else {
+		} else { // Read token `>`
 			tok = newToken(token.GT, l.char)
 		}
 
@@ -599,10 +612,10 @@ func (l *Lexer) move() token.Token {
 		tok = newToken(token.QUESTION, l.char)
 
 	case ':':
-		if l.peekChar() == ':' {
+		if l.peekChar() == ':' { // Read token `::`
 			l.readChar()
 			tok = token.Token{Type: token.COLON2, Literal: "::"}
-		} else {
+		} else { // Read token `:`
 			tok = newToken(token.COLON, l.char)
 		}
 
@@ -611,15 +624,16 @@ func (l *Lexer) move() token.Token {
 		tok.Type = token.EOF
 
 	default:
-		if unicode.IsDigit(l.char) {
+		if unicode.IsDigit(l.char) { // Read token `NUMBER`
 			tok = l.readNumber()
 			return tok
-		} else if l.isIdentifierStart() {
+		} else if l.isIdentifierStart() { // Read token `IDENT` or `KEYWORD`
 			ident := l.readIdentifier()
-			tok = token.LookupIdent(ident)
+			tok = token.LookupIdent(ident) // Lookup `KEYWORD`
 			return tok
 		}
 
+		// All other characters are illegal
 		tok = token.Token{Type: token.ILLEGAL, Literal: string(l.char)}
 	}
 

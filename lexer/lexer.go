@@ -224,6 +224,10 @@ func (l *Lexer) readString() token.Token {
 	var b bytes.Buffer
 
 	// var hasComment bool
+	var (
+		isPreValidEscape bool
+		isPreValidQuote  bool
+	)
 	for {
 		l.readChar()
 
@@ -231,9 +235,18 @@ func (l *Lexer) readString() token.Token {
 			return token.NewIllegalToken(fmt.Sprintf("unexpected EOF: '%s", b.String()))
 		}
 
-		// ', \ in previous char will escape current char
-		if l.char == '\'' && l.preChar != '\\' && l.preChar != '\'' {
-			break
+		if l.char == '\'' && !isPreValidEscape && !isPreValidQuote {
+			if l.peekChar() != '\'' {
+				break
+			} else {
+				isPreValidQuote = true
+			}
+		}
+
+		if l.char == '\\' && !isPreValidEscape {
+			isPreValidEscape = true
+		} else {
+			isPreValidEscape = false
 		}
 
 		// No need to check comment in string literal
@@ -255,6 +268,10 @@ func (l *Lexer) readBackQuoteIdentifier() token.Token {
 	var b bytes.Buffer
 
 	// var hasComment bool
+	var (
+		isPreValidEscape    bool
+		isPreValidBackQuote bool
+	)
 	for {
 		l.readChar()
 
@@ -262,9 +279,18 @@ func (l *Lexer) readBackQuoteIdentifier() token.Token {
 			return token.NewIllegalToken(fmt.Sprintf("unexpected EOF: `%s", b.String()))
 		}
 
-		// `, \ in previous char will escape current char
-		if l.char == '`' && l.preChar != '\\' && l.preChar != '`' {
-			break
+		if l.char == '`' && !isPreValidEscape && !isPreValidBackQuote {
+			if l.peekChar() != '`' {
+				break
+			} else {
+				isPreValidBackQuote = true
+			}
+		}
+
+		if l.char == '\\' && !isPreValidEscape {
+			isPreValidEscape = true
+		} else {
+			isPreValidEscape = false
 		}
 
 		// No need to check comment in back quote identifier
@@ -286,6 +312,10 @@ func (l *Lexer) readDoubleQuoteIdentifier() token.Token {
 	var b bytes.Buffer
 
 	// var hasComment bool
+	var (
+		isPreValidEscape      bool
+		isPreValidDoubleQuote bool
+	)
 	for {
 		l.readChar()
 
@@ -293,9 +323,18 @@ func (l *Lexer) readDoubleQuoteIdentifier() token.Token {
 			return token.NewIllegalToken(fmt.Sprintf(`unexpected EOF: "%s`, b.String()))
 		}
 
-		// ", \ in previous char will escape current char
-		if l.char == '"' && l.preChar != '\\' && l.preChar != '"' {
-			break
+		if l.char == '"' && !isPreValidEscape && !isPreValidDoubleQuote {
+			if l.peekChar() != '"' {
+				break
+			} else {
+				isPreValidDoubleQuote = true
+			}
+		}
+
+		if l.char == '\\' && !isPreValidEscape {
+			isPreValidEscape = true
+		} else {
+			isPreValidEscape = false
 		}
 
 		// No need to check comment in double quote identifier

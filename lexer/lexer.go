@@ -82,7 +82,6 @@ func (l *Lexer) readNumber() token.Token {
 	var (
 		hasPeriod   bool
 		hasExponent bool
-		hasSign     bool
 
 		isInvalid bool
 	)
@@ -91,20 +90,9 @@ func (l *Lexer) readNumber() token.Token {
 		return char == 'e' || char == 'E'
 	}
 
-	for isLetter(l.char) || unicode.IsDigit(l.char) || l.char == '.' || l.char == '+' || l.char == '-' {
-		if l.char == '+' || l.char == '-' {
-			if hasSign {
-				// 12.e+3+3 => ((12.e+3)+3)
-				// 12.e-3-3 => ((12.e-3)-3)
-				break
-			} else {
-				hasSign = true
-			}
-
-			// 0e+ is invalid
-			// 0e- is invalid
-			// 0e.1 is invalid
-			if !hasExponent || !unicode.IsDigit(l.peekChar()) {
+	for isLetter(l.char) || unicode.IsDigit(l.char) || l.char == '.' {
+		if hasExponent {
+			if !unicode.IsDigit(l.char) {
 				isInvalid = true
 			}
 		} else if l.char == '.' {
@@ -114,17 +102,14 @@ func (l *Lexer) readNumber() token.Token {
 				hasPeriod = true
 			}
 		} else if isExponent(l.char) {
-			if hasExponent {
-				isInvalid = true
-			} else {
-				hasExponent = true
+			hasExponent = true
+
+			if l.peekChar() == '+' || l.peekChar() == '-' {
+				b.WriteRune(l.char)
+				l.readChar()
 			}
 
-			if l.peekChar() != '+' && l.peekChar() != '-' && !unicode.IsDigit(l.peekChar()) {
-				isInvalid = true
-			}
-		} else if hasExponent {
-			if !unicode.IsDigit(l.char) {
+			if !unicode.IsDigit(l.peekChar()) {
 				isInvalid = true
 			}
 		} else if isLetter(l.char) {
@@ -307,7 +292,7 @@ func (l *Lexer) readBackQuoteIdentifier() token.Token {
 		b.WriteRune(l.char)
 	}
 
-	return token.Token{Type: token.BACK_QUOTE_IDENT, Literal: "`" + b.String() + "`"}
+	return token.Token{Type: token.BACK_QUOTE_IDENT, Literal: b.String()}
 }
 
 func (l *Lexer) readDoubleQuoteIdentifier() token.Token {
@@ -324,7 +309,7 @@ func (l *Lexer) readDoubleQuoteIdentifier() token.Token {
 		l.readChar()
 
 		if l.char == EOF {
-			return token.NewIllegalToken(fmt.Sprintf(`unexpected EOF: "%s`, b.String()))
+			return token.NewIllegalToken(fmt.Sprintf(`unexpected EOF: %s`, b.String()))
 		}
 
 		if l.char == '"' && !isPreValidEscape && !isPreValidDoubleQuote {
@@ -348,7 +333,7 @@ func (l *Lexer) readDoubleQuoteIdentifier() token.Token {
 		b.WriteRune(l.char)
 	}
 
-	return token.Token{Type: token.DOUBLE_QUOTE_IDENT, Literal: `"` + b.String() + `"`}
+	return token.Token{Type: token.DOUBLE_QUOTE_IDENT, Literal: b.String()}
 }
 
 func (l *Lexer) readIdentifier() string {
@@ -446,7 +431,7 @@ func (l *Lexer) isIdentifierStart() bool {
 }
 
 func isLetter(char rune) bool {
-	return char > 'a' && char < 'z' || char > 'A' && char < 'Z'
+	return char >= 'a' && char <= 'z' || char >= 'A' && char <= 'Z'
 }
 
 func newToken(tokenType token.Type, ch rune) token.Token {

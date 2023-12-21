@@ -161,6 +161,7 @@ func TestNumberLiteral(t *testing.T) {
 	0e 0.e+
 	0e+3+3 12.e-3+3
 	0X123g 0b01010 0b01230 01234567 018 0xae12c34af
+	3e+.3
 	`
 	expected := ExpectedLiterals{
 		{token.PERIOD, "."},
@@ -193,6 +194,7 @@ func TestNumberLiteral(t *testing.T) {
 		{token.NUMBER, "01234567"},
 		{token.ILLEGAL, `invalid octal number literal: "018"`},
 		{token.NUMBER, "0xae12c34af"},
+		{token.ILLEGAL, "invalid number literal: \"3e+.3\""},
 		{token.EOF, ""},
 	}
 
@@ -285,6 +287,8 @@ func TestOperators(t *testing.T) {
 		{token.AMP, "&"},
 		{token.PIPE, "|"},
 		{token.XOR, "^"},
+		{token.PRT, "->"},
+		{token.PRT2, "->>"},
 		{token.PIPE2, "||"},
 		{token.LT2, "<<"},
 		{token.RT2, ">>"},

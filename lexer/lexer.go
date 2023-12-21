@@ -218,28 +218,26 @@ func (l *Lexer) readString() token.Token {
 	var b bytes.Buffer
 
 	b.WriteRune(l.char) // Write `'`
+	l.readChar()
 
-	var (
-		isPreValidEscape bool
-		isPreValidQuote  bool
-	)
+	isPreValidEscape := false
 	for {
-		l.readChar()
-
 		if l.char == EOF {
 			return token.NewIllegalToken(fmt.Sprintf("unexpected EOF: %s", b.String()))
 		}
 
-		if l.char == '\'' && !isPreValidEscape && !isPreValidQuote {
-			if l.peekChar() != '\'' {
-				// Write end `'`
-				b.WriteRune(l.char)
-				break
-			} else {
-				isPreValidQuote = true
+		if l.char == '\'' && !isPreValidEscape {
+			if l.peekChar() == '\'' {
+				b.WriteRune(l.char) // Write `'`
+				l.readChar()
+				b.WriteRune(l.char) // Write `'`
+				l.readChar()
+				isPreValidEscape = false
+				continue
 			}
-		} else {
-			isPreValidQuote = false
+
+			b.WriteRune(l.char)
+			break
 		}
 
 		if l.char == '\\' && !isPreValidEscape {
@@ -249,6 +247,7 @@ func (l *Lexer) readString() token.Token {
 		}
 
 		b.WriteRune(l.char)
+		l.readChar()
 	}
 
 	return token.Token{Type: token.STRING, Literal: b.String()}
@@ -259,28 +258,26 @@ func (l *Lexer) readBackQuoteIdentifier() token.Token {
 
 	// Write '`'
 	b.WriteRune(l.char)
+	l.readChar()
 
-	var (
-		isPreValidEscape    bool
-		isPreValidBackQuote bool
-	)
+	isPreValidEscape := false
 	for {
-		l.readChar()
-
 		if l.char == EOF {
 			return token.NewIllegalToken(fmt.Sprintf("unexpected EOF: %s", b.String()))
 		}
 
-		if l.char == '`' && !isPreValidEscape && !isPreValidBackQuote {
-			if l.peekChar() != '`' {
-				// Write end '`'
-				b.WriteRune(l.char)
-				break
-			} else {
-				isPreValidBackQuote = true
+		if l.char == '`' && !isPreValidEscape {
+			if l.peekChar() == '`' {
+				b.WriteRune(l.char) // Write "`"
+				l.readChar()
+				b.WriteRune(l.char) // Write "`"
+				l.readChar()
+				isPreValidEscape = false
+				continue
 			}
-		} else {
-			isPreValidBackQuote = false
+
+			b.WriteRune(l.char)
+			break
 		}
 
 		if l.char == '\\' && !isPreValidEscape {
@@ -290,6 +287,7 @@ func (l *Lexer) readBackQuoteIdentifier() token.Token {
 		}
 
 		b.WriteRune(l.char)
+		l.readChar()
 	}
 
 	return token.Token{Type: token.BACK_QUOTE_IDENT, Literal: b.String()}
@@ -300,28 +298,27 @@ func (l *Lexer) readDoubleQuoteIdentifier() token.Token {
 
 	// Write `"`
 	b.WriteRune(l.char)
+	l.readChar()
 
-	var (
-		isPreValidEscape      bool
-		isPreValidDoubleQuote bool
-	)
+	isPreValidEscape := false
 	for {
-		l.readChar()
 
 		if l.char == EOF {
 			return token.NewIllegalToken(fmt.Sprintf(`unexpected EOF: %s`, b.String()))
 		}
 
-		if l.char == '"' && !isPreValidEscape && !isPreValidDoubleQuote {
-			if l.peekChar() != '"' {
-				// Write end `"`
-				b.WriteRune(l.char)
-				break
-			} else {
-				isPreValidDoubleQuote = true
+		if l.char == '"' && !isPreValidEscape {
+			if l.peekChar() == '"' {
+				b.WriteRune(l.char) // Write `"`
+				l.readChar()
+				b.WriteRune(l.char) // Write `"`
+				l.readChar()
+				isPreValidEscape = false
+				continue
 			}
-		} else {
-			isPreValidDoubleQuote = false
+
+			b.WriteRune(l.char)
+			break
 		}
 
 		if l.char == '\\' && !isPreValidEscape {
@@ -331,6 +328,7 @@ func (l *Lexer) readDoubleQuoteIdentifier() token.Token {
 		}
 
 		b.WriteRune(l.char)
+		l.readChar()
 	}
 
 	return token.Token{Type: token.DOUBLE_QUOTE_IDENT, Literal: b.String()}
